@@ -94,3 +94,26 @@ hand. The canvas keeps the UI5 theme chosen for it.
 | `npm run verify:abap` | Transpile and run the generated classes on abap2UI5 |
 | `npm run test:e2e` | The designer in Chromium, UI5 current and 1.71 |
 | `npm run verify` | All of the above |
+
+## Pins and how they move
+
+Every npm dependency is pinned **exactly** (no caret in `package.json`): the
+checks run on the versions the lockfile names. Three things move the pins,
+each through a pull request - never move one by hand without its gate.
+
+| | |
+|---|---|
+| `bump-linter.yaml` | Weekly: pins `@abap2ui5/linter` to its latest release behind all four checks |
+| `bump-runtime.yaml` | Weekly: pins `@abap2ui5/node-runtime` to its latest release, `@abaplint/transpiler-cli` to the version that release was built with, and names the release in the README ("verified against"), behind `npm test`, `check:abap` and `verify:abap` |
+| `dependabot.yml` | Monthly: the other npm pins and the actions, majors separated |
+
+- The linter and the runtime are not Dependabot's (ignored there): a 0.x
+  minor of the linter is a "major" to it, and the runtime never moves
+  without its transpiler and the README.
+- `@abaplint/transpiler-cli` is the version in `abap2ui5.transpiler` of the
+  runtime's `package.json`, never newer: `abap2ui5-transpile` refuses any
+  other.
+- A bump that turns a check red is fixed in the bump's PR - in the
+  generator, the catalogue or the tool - not by an exclusion in
+  `abap2ui5lint.jsonc`.
+- A new workflow pins its actions to commits (`uses: owner/action@<sha> # vX.Y.Z`).

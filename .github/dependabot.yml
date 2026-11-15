@@ -1,0 +1,42 @@
+# Every npm dependency here is pinned EXACTLY - no carets in package.json -
+# so the checks run on the versions the lockfile names and nothing else. That
+# left the pins with no way to move: @playwright/test sat eight minors behind
+# its siblings.
+#
+# Monthly and grouped, like the playground's: every bump means the unit
+# tests, the run on abap2UI5 and the browser tests. Majors are separated.
+#
+# Three packages are deliberately NOT here, because a workflow owns each and
+# moves it behind its gate once a week:
+#   @abap2ui5/linter          bump-linter.yaml (a 0.x minor is a "major" for
+#                             Dependabot, and would wait in the majors PR)
+#   @abap2ui5/node-runtime    bump-runtime.yaml (moves the README with it)
+#   @abaplint/transpiler-cli  bump-runtime.yaml (the version the runtime was
+#                             built with - never newer, never on its own)
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+      time: "06:00"
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "@abap2ui5/linter"
+      - dependency-name: "@abap2ui5/node-runtime"
+      - dependency-name: "@abaplint/transpiler-cli"
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+      major:
+        update-types: [major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      time: "06:00"
+    groups:
+      actions:
+        patterns: ["*"]

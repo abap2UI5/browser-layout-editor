@@ -238,6 +238,11 @@ npm run serve          # http://127.0.0.1:8080/
 npm run verify         # all four checks above
 ```
 
+The dependencies are pinned exactly and move by pull request: the linter
+and `@abap2ui5/node-runtime` (with its transpiler and the release named
+above) once a week, each behind the checks (`bump-linter.yaml`,
+`bump-runtime.yaml`), everything else once a month through Dependabot.
+
 The preview loads UI5 from the OpenUI5 CDN. Without access to it, serve
 local OpenUI5 trees and open the editor with `?ui5=local`.
 `npm run ui5:trees` assembles them from the `@openui5/*` npm packages into
