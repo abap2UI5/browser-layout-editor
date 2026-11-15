@@ -156,8 +156,12 @@ test('several controls copied go into the clipboard together', async ({ designer
 
 test('attributes change their order, rows come pasted from a spreadsheet', async ({ designer: page }) => {
   await page.getByRole('tab', { name: 'Data' }).click();
+  const cards = page.locator('#dataPanel .attr');
+  const before = await cards.count();
   await page.locator('#dataPanel').getByRole('button', { name: '+ Table' }).click();
-  const card = page.locator('#dataPanel .attr').last();
+  // the new card is drawn after the click returns: read its name only then
+  await expect(cards).toHaveCount(before + 1);
+  const card = cards.last();
   const name = await card.locator('.aname').inputValue();
   await card.getByRole('button', { name: 'Move attribute up' }).click();
   await expect(page.locator('#dataPanel .attr').nth(-2).locator('.aname')).toHaveValue(name);
