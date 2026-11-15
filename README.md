@@ -301,6 +301,7 @@ runtime. Run it when the palette gains a control.
 | `src/patterns.js` | The building blocks |
 | `src/model.js` | The design document and every edit on it |
 | `src/abap.js` | Design → the ABAP class and its abapGit files |
+| `src/vendor/linter/` | The abap2UI5 linter's chain writer, which lays out the view chain - a copy made by `tools/vendor-linter.mjs`, never edited here |
 | `src/xml.js` | Design → XML view (preview, export), and XML view → design (import) |
 | `src/diff.js` | The line diff of the *Changes* tab |
 | `src/app.js` | The editor UI: wires the panels and renders them on every change |

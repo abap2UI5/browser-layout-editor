@@ -21,7 +21,8 @@ The product is the generated class. It must:
 3. **Keep the view-chain house layout**: one call per line, four spaces per
    level, `end( )` in the column of its `ele( )`, the `v =` column aligned.
    Source: the `view-chain-layout` skill in abap2UI5/abap2UI5, checked by
-   the linter's `chain-house-layout` (`npm run check:abap`).
+   the linter's `chain-house-layout` (`npm run check:abap`) and written by
+   the linter's own chain writer (`src/vendor/linter/`, see Rules).
 4. **Pull cleanly with abapGit**: `.abap` without BOM, `.xml` with BOM, LF,
    one final newline, no trailing blanks, max. 255 characters per line.
 5. **Run on UI5 1.71**: every control, property, enum value, aggregation
@@ -38,6 +39,15 @@ The product is the generated class. It must:
   from the UI5 runtime of the canvas through `runtimeDef( )`; it is never
   written into `CONTROLS` and never checked against 1.71. Everything that
   reads the catalogue goes through `getControl( )`, which knows both.
+- The chain is written by the abap2UI5 linter's chain writer
+  (`@abap2ui5/linter/chain-write`), the one the playground and the VS Code
+  extension write with too. `src/abap.js` hands it a tree (`viewTree( )`)
+  and never lays out a line of the chain itself. The designer has no build
+  step, so the writer is a copy in `src/vendor/linter/`, made by
+  `node tools/vendor-linter.mjs <linter checkout>` and never edited here:
+  a layout change goes into abap2UI5/linter and is vendored again
+  (`npm test` holds the copies to `source.json`, and to the pinned linter
+  once that release ships the writer).
 - `defaultAgg` is UI5's default aggregation and nothing else, because
   children of the default aggregation are written without a wrapper tag.
   Where a drop should land somewhere else, use `dropAgg`.
@@ -88,7 +98,7 @@ hand. The canvas keeps the UI5 theme chosen for it.
 | Command | What |
 |---|---|
 | `npm run serve` | The designer on http://127.0.0.1:8080/ |
-| `npm test` | Unit tests (catalogue vs. 1.71, class format, chain vs. builder model, import) |
+| `npm test` | Unit tests (catalogue vs. 1.71, class format, chain vs. builder model, import, the vendored chain writer) |
 | `npm run check:abap` | abap2UI5 linter over the generated classes |
 | `npm run check:abap702` | abaplint at v702 over the generated 7.02 classes (also part of `npm test`) |
 | `npm run verify:abap` | Transpile and run the generated classes on abap2UI5 |
