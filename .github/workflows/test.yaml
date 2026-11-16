@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # bump-linter.yaml and bump-runtime.yaml start this on their PR's branch:
+  # a PR opened with the workflow token starts no run by itself
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -184,7 +184,7 @@ Also in the editor:
 ## What the generated class needs
 
 - An abap2UI5 release that ships `z2ui5_cl_ui5_view_builder`. The class is
-  verified against **abap2UI5 1.147.0**.
+  verified against **abap2UI5 1.148.0**.
 - ABAP 7.40 or later, or ABAP Cloud. The class uses inline declarations and
   `VALUE #( )`, like every abap2UI5 sample. For an older system, choose
   **ABAP 7.02** next to the class name: the class then declares its
@@ -237,6 +237,11 @@ npm ci
 npm run serve          # http://127.0.0.1:8080/
 npm run verify         # all four checks above
 ```
+
+The dependencies are pinned exactly and move by pull request: the linter
+and `@abap2ui5/node-runtime` (with its transpiler and the release named
+above) once a week, each behind the checks (`bump-linter.yaml`,
+`bump-runtime.yaml`), everything else once a month through Dependabot.
 
 The preview loads UI5 from the OpenUI5 CDN. Without access to it, serve
 local OpenUI5 trees and open the editor with `?ui5=local`.
@@ -296,6 +301,7 @@ runtime. Run it when the palette gains a control.
 | `src/patterns.js` | The building blocks |
 | `src/model.js` | The design document and every edit on it |
 | `src/abap.js` | Design → the ABAP class and its abapGit files |
+| `src/vendor/linter/` | The abap2UI5 linter's chain writer, which lays out the view chain - a copy made by `tools/vendor-linter.mjs`, never edited here |
 | `src/xml.js` | Design → XML view (preview, export), and XML view → design (import) |
 | `src/diff.js` | The line diff of the *Changes* tab |
 | `src/app.js` | The editor UI: wires the panels and renders them on every change |

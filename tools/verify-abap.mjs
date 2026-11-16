@@ -23,9 +23,10 @@ const designs = await writeClasses();
 console.log(`transpiling ${designs.length} classes against abap2UI5…`);
 execFileSync('npx', ['abap2ui5-transpile', '.verify/abap', '.verify/apps'], { cwd: ROOT, stdio: 'inherit' });
 
-const { initialize, serve } = await import('@abap2ui5/node-runtime');
+// the transpile's output is a complete runtime - the framework and the
+// generated classes in one - and its host.mjs carries the package's exports
+const { initialize, serve } = await import(`${WORK}/apps/host.mjs`);
 await initialize({ draftSweepMs: false });
-await import(`${WORK}/apps/index.mjs`);
 const server = await serve({ port: 0, host: '127.0.0.1' });
 const base = `http://127.0.0.1:${server.address().port}`;
 

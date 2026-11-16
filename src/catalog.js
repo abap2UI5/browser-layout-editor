@@ -350,7 +350,7 @@ export const CONTROLS = {
   NumericContent: { category: 'Parts', props: { value: str, scale: str, indicator: en(['None', 'Up', 'Down']), valueColor: en(['Neutral', 'Good', 'Critical', 'Error']), icon: icon, withMargin: bool, visible: bool }, events: ['press'], init: { props: { value: '42' } } },
 
   'core:Title': { category: 'Display', props: { text: str, icon: icon, level: en(TITLE_LEVEL), emphasized: bool }, init: { props: { text: 'Section' } } },
-  'core:HTML': { category: 'Display', props: { content: str, preferDOM: bool, sanitizeContent: bool, visible: bool }, init: { props: { content: '<div class="sapUiSmallMargin">HTML</div>' } } },
+  'core:HTML': { category: 'Display', props: { content: { type: 'string', hint: 'markup that opens with a tag: <div>…</div>', sample: '<span>Text</span>' }, preferDOM: bool, sanitizeContent: bool, visible: bool }, init: { props: { content: '<div class="sapUiSmallMargin">HTML</div>' } } },
   ObjectMarker: {
     category: 'Display',
     props: { type: en(['Flagged', 'Favorite', 'Draft', 'Locked', 'Unsaved', 'LockedBy', 'UnsavedBy']), visibility: en(['IconOnly', 'TextOnly', 'IconAndText']), additionalInfo: str, visible: bool },

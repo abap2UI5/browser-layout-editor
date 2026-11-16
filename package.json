@@ -20,11 +20,11 @@
     "verify": "npm test && npm run check:abap && npm run verify:abap && npm run test:e2e"
   },
   "devDependencies": {
-    "@abap2ui5/linter": "0.8.5",
-    "@abap2ui5/node-runtime": "1.147.0",
+    "@abap2ui5/linter": "0.9.0",
+    "@abap2ui5/node-runtime": "1.148.0",
     "@abaplint/cli": "2.120.80",
-    "@abaplint/transpiler-cli": "2.14.3",
-    "@playwright/test": "1.56.1",
+    "@abaplint/transpiler-cli": "2.14.5",
+    "@playwright/test": "1.64.1",
     "express": "5.3.0"
   }
 }

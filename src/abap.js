@@ -13,6 +13,7 @@
 import { NAMESPACES, splitType } from './catalog.js';
 import { aggNames, collectEvents, typeName, tableTypes, isDirectAgg } from './model.js';
 import { usedNamespaces, namespaceUri } from './xml.js';
+import { writeChain, literalPieces } from './vendor/linter/chain-write.mjs';
 
 const MAX_LINE = 255;
 
@@ -58,19 +59,9 @@ function abapStringPieces(s, width, release) {
     if (release !== '702') return templatePieces(str, width);
     return str.split(/(\r\n|[\n\r\t])/).filter(Boolean).flatMap((part) => (CHAR_CONST[part] ? [CHAR_CONST[part]] : abapStringPieces(part, width)));
   }
-  // the width counts as written: a backtick is doubled in the literal
-  const cost = (ch) => (ch === '`' ? 2 : 1);
-  if (str.length <= width / 2 || [...str].reduce((n, ch) => n + cost(ch), 0) <= width) return [abapString(str)];
-  const parts = [];
-  let cur = '';
-  let len = 0;
-  for (const ch of str) {
-    if (cur && len + cost(ch) > width) { parts.push(abapString(cur)); cur = ''; len = 0; }
-    cur += ch;
-    len += cost(ch);
-  }
-  if (cur) parts.push(abapString(cur));
-  return parts;
+  // the width counts the text as written (a backtick is doubled), the two
+  // delimiters on top of it
+  return literalPieces(str, width + 2);
 }
 
 // a text with a line break on 7.40: string templates of at most `width`
@@ -186,51 +177,18 @@ function attrExpr(value, release) {
   }
 }
 
-function eleCall(verb, name, ns) {
-  return ns ? `${verb}( n = ${abapString(name)} ns = ${abapString(ns)}` : `${verb}( ${abapString(name)}`;
-}
-
-// The view_display body: the chain lines, without the method frame
-export function viewChain(design, indent = 4) {
+// The view as the tree the chain writer takes: the mvc:View root with its
+// namespace declarations, every control with its properties and events as
+// attributes, and a wrapper element for every aggregation that is not the
+// control's default one. `id` is the design node a line of the chain
+// belongs to - an aggregation's lines belong to its control.
+export function viewTree(design) {
   const release = releaseOf(design);
-  const out = []; // { text, kind: 'ele'|'tag'|'a'|'end'|'start', blank, node }
-  const base = indent + 4;
-  let owner = 'root'; // the design node the lines being written belong to
-  // on 7.02 the variable is declared at the top of the method (buildClass)
-  out.push({ text: `${' '.repeat(indent)}${release === '702' ? 'view' : 'DATA(view)'} = z2ui5_cl_ui5_view_builder=>factory(`, kind: 'start' });
+  const attr = ([name, expr]) => ({ name, key: expr.p, pieces: expr.pieces });
 
-  // the mvc:View root with its namespace declarations
   const viewAttrs = usedNamespaces(design).map((ns) => [ns ? `xmlns:${ns}` : 'xmlns', attrExpr({ m: 's', v: namespaceUri(design, ns) }, release)]);
   viewAttrs.push(['displayBlock', attrExpr({ m: 's', v: 'true' }, release)], ['height', attrExpr({ m: 's', v: '100%' }, release)]);
-  out.push({ text: `${' '.repeat(base)})->${eleCall('ele', 'View', 'mvc')}`, kind: 'ele' });
-  pushAttrs(viewAttrs, base + 4);
-  emitChildren([['content', design.root.aggs.content || [], true]], base, true);
-
-  // a trailing end( ) can go: stringify( ) renders from the root anyway
-  while (out.length && out[out.length - 1].kind === 'end') out.pop();
-  const lines = [];
-  // which design node each line belongs to, for the code view that links
-  // a line to its control - a blank line belongs to none
-  const nodeIds = [];
-  for (const seg of out) {
-    if (seg.blank) { lines.push(''); nodeIds.push(null); }
-    lines.push(seg.text);
-    nodeIds.push(seg.node || 'root');
-  }
-  lines[lines.length - 1] += ' ).';
-  lines.nodeIds = nodeIds;
-  return lines;
-
-  function pushAttrs(attrs, col) {
-    if (!attrs.length) return;
-    const width = Math.max(...attrs.map(([n]) => abapString(n).length));
-    for (const [n, expr] of attrs) {
-      const head = `${' '.repeat(col)})->a( n = ${abapString(n).padEnd(width)} ${expr.p} = `;
-      const [first, ...rest] = expr.pieces;
-      out.push({ text: head + first, kind: 'a', node: owner });
-      for (const piece of rest) out.push({ text: `${' '.repeat(head.length - 3)}&& ${piece}`, kind: 'a', node: owner });
-    }
-  }
+  return { name: 'View', ns: 'mvc', id: 'root', attrs: viewAttrs.map(attr), children: (design.root.aggs.content || []).map(nodeTree) };
 
   function nodeAttrs(node) {
     const attrs = [];
@@ -245,59 +203,29 @@ export function viewChain(design, indent = 4) {
     return attrs;
   }
 
-  function hasChildren(node) {
-    return aggNames(node).some((a) => (node.aggs[a] || []).length);
-  }
-
-  // groups: [aggName, children, direct][]; col: the column of the parent
-  function emitChildren(groups, parentCol, parentHasAttrs) {
-    let prev = null;
-    for (const [agg, children, direct, parentNs] of groups) {
-      if (!children.length) continue;
-      if (direct) {
-        for (const ch of children) prev = emitNode(ch, parentCol + 4, prev, parentHasAttrs);
-      } else {
-        const col = parentCol + 4;
-        const parentOwner = owner;
-        out.push({ text: `${' '.repeat(col)})->${eleCall('ele', agg, parentNs)}`, kind: 'ele', blank: blankBeforeEle(prev, parentHasAttrs), node: owner });
-        let p2 = null;
-        for (const ch of children) p2 = emitNode(ch, col + 4, p2, false);
-        owner = parentOwner;
-        pushEnd(col);
-        prev = 'ele';
-      }
-    }
-  }
-
-  function emitNode(node, col, prev, parentHasAttrs) {
+  function nodeTree(node) {
     const { ns, name } = splitType(node.type);
-    const attrs = nodeAttrs(node);
-    const parentOwner = owner;
-    owner = node.id;
-    if (!hasChildren(node)) {
-      out.push({ text: `${' '.repeat(col)})->${eleCall('tag', name, ns)}`, kind: 'tag', blank: prev !== 'tag', node: owner });
-      pushAttrs(attrs, col + 4);
-      owner = parentOwner;
-      return 'tag';
+    const children = [];
+    for (const agg of aggNames(node)) {
+      const inAgg = (node.aggs[agg] || []).map(nodeTree);
+      if (!inAgg.length) continue;
+      if (isDirectAgg(node, agg)) children.push(...inAgg);
+      else children.push({ name: agg, ns, id: node.id, attrs: [], children: inAgg });
     }
-    out.push({ text: `${' '.repeat(col)})->${eleCall('ele', name, ns)}`, kind: 'ele', blank: blankBeforeEle(prev, parentHasAttrs), node: owner });
-    pushAttrs(attrs, col + 4);
-    const groups = aggNames(node).map((a) => [a, node.aggs[a] || [], isDirectAgg(node, a), ns]);
-    emitChildren(groups, col, attrs.length > 0);
-    owner = node.id;
-    pushEnd(col);
-    owner = parentOwner;
-    return 'ele';
+    return { name, ns, id: node.id, attrs: nodeAttrs(node).map(attr), children };
   }
+}
 
-  function blankBeforeEle(prev, parentHasAttrs) {
-    return (prev === null && parentHasAttrs) || prev === 'tag';
-  }
-
-  function pushEnd(col) {
-    const last = out[out.length - 1];
-    out.push({ text: `${' '.repeat(col)})->end(`, kind: 'end', blank: last.kind !== 'end', node: owner });
-  }
+// The view_display body: the chain lines, without the method frame. The
+// layout is the abap2UI5 linter's chain writer (src/vendor/linter/), the
+// one the playground and the VS Code extension write with too.
+export function viewChain(design, indent = 4) {
+  // on 7.02 the variable is declared at the top of the method (buildClass)
+  const { lines, owners } = writeChain(viewTree(design), { indent, assignment: releaseOf(design) === '702' ? 'view = ' : 'DATA(view) = ' });
+  // which design node each line belongs to, for the code view that links
+  // a line to its control - a blank line belongs to none
+  lines.nodeIds = lines.map((line, i) => (line === '' ? null : owners[i] ? owners[i].id : 'root'));
+  return lines;
 }
 
 // ------------------------------------------------------------- the class

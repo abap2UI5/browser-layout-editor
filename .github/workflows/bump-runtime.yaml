@@ -1,0 +1,102 @@
+# `npm run verify:abap` transpiles the generated classes against abap2UI5
+# and runs them on it - on the release of @abap2ui5/node-runtime that
+# package.json pins, the one the README names as "verified against". That
+# pin had no way to move, and a move is not always a version number: 1.148.0
+# changed what the transpile writes (a complete runtime behind host.mjs),
+# and tools/verify-abap.mjs had to follow.
+#
+# So a weekly move like bump-linter.yaml: resolve `latest`, pin it exactly,
+# pin the transpiler it was built with beside it, name the release in the
+# README, run the checks as the gate, open a PR.
+#
+# @abaplint/transpiler-cli rides along deliberately: transpiler output is
+# tied to its runtime, the package records the version its framework was
+# built with (`abap2ui5.transpiler` in its package.json), and
+# abap2ui5-transpile refuses any other.
+name: bump-runtime
+
+on:
+  schedule:
+    - cron: '37 7 * * 1'   # Mondays 07:37 UTC - after bump-linter's 07:11
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  # To start test.yaml on the PR's branch (below).
+  actions: write
+
+jobs:
+  bump-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    # No write token left in .git/config while npm installs a freshly
+    # published package and runs the tests over it; create-pull-request
+    # authenticates on its own.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: '22'
+
+    - name: Pin @abap2ui5/node-runtime to the latest published version
+      id: pin
+      run: |
+        set -euo pipefail
+        # Resolved first and checked: `npm view` prints nothing and still
+        # exits 0 when a package has no `latest` dist-tag.
+        VERSION=$(npm view @abap2ui5/node-runtime version)
+        [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+        TRANSPILER=$(npm view "@abap2ui5/node-runtime@$VERSION" abap2ui5.transpiler)
+        [[ "$TRANSPILER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "transpiler=$TRANSPILER" >> "$GITHUB_OUTPUT"
+        # --save-exact: every dependency here is pinned exactly.
+        npm install --save-dev --save-exact "@abap2ui5/node-runtime@$VERSION" "@abaplint/transpiler-cli@$TRANSPILER"
+        # the release the README says the class is verified against
+        grep -Eq 'verified against \*\*abap2UI5 [0-9]+\.[0-9]+\.[0-9]+\*\*' README.md
+        sed -i -E "s/(verified against \*\*abap2UI5 )[0-9]+\.[0-9]+\.[0-9]+(\*\*)/\1$VERSION\2/" README.md
+        if git diff --quiet package.json package-lock.json README.md; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    # The gate: everything that touches the generated class. The browser
+    # tests drive the designer, which the runtime is no part of; test.yaml
+    # runs them on the PR all the same.
+    - if: steps.pin.outputs.changed == 'true'
+      run: npm test
+    - if: steps.pin.outputs.changed == 'true'
+      run: npm run check:abap
+    - if: steps.pin.outputs.changed == 'true'
+      run: npm run verify:abap
+
+    - if: steps.pin.outputs.changed == 'true'
+      id: pr
+      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+      with:
+        branch: bump-runtime
+        add-paths: |
+          package.json
+          package-lock.json
+          README.md
+        title: 'chore: bump @abap2ui5/node-runtime'
+        commit-message: 'chore: bump @abap2ui5/node-runtime to ${{ steps.pin.outputs.version }}'
+        body: |
+          Weekly move of `@abap2ui5/node-runtime` to the latest version on
+          npm (${{ steps.pin.outputs.version }}), with the transpiler that
+          release was built with (`@abaplint/transpiler-cli`
+          ${{ steps.pin.outputs.transpiler }}) and the release named in the
+          README. Every generated class was transpiled against it and run on
+          it in the workflow that opened this PR.
+
+    # A push or a PR made with the workflow's own GITHUB_TOKEN starts no
+    # workflow runs - GitHub's rule against loops - so test.yaml would never
+    # run on this PR. workflow_dispatch is exempt.
+    - if: steps.pr.outputs.pull-request-operation == 'created' || steps.pr.outputs.pull-request-operation == 'updated'
+      run: gh workflow run test.yaml --ref bump-runtime
+      env:
+        GH_TOKEN: ${{ github.token }}
