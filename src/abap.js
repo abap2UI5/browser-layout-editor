@@ -165,10 +165,12 @@ function attrExpr(value, release) {
       return { p: /[{}\\]/.test(s) ? 't' : 'v', pieces: abapStringPieces(s, 120, release) };
     }
     case 'b':
-      // a tree: the path with the field its children come from
+      // a tree: the path with the field its children come from - _bind_path( ),
+      // not _bind( path = abap_true ), the same call spelled through a flag
+      // (the linter's bind-path-flag)
       if (value.arr) {
-        if (release === '702') return { p: 'v', pieces: [`\`{path:'\` && client->_bind( val = ${value.v} path = abap_true ) && \`',parameters:{arrayNames:['${value.arr}']}}\``] };
-        return { p: 'v', pieces: [`|\\{path:'{ client->_bind( val = ${value.v} path = abap_true ) }',parameters:\\{arrayNames:['${value.arr}']\\}\\}|`] };
+        if (release === '702') return { p: 'v', pieces: [`\`{path:'\` && client->_bind_path( ${value.v} ) && \`',parameters:{arrayNames:['${value.arr}']}}\``] };
+        return { p: 'v', pieces: [`|\\{path:'{ client->_bind_path( ${value.v} ) }',parameters:\\{arrayNames:['${value.arr}']\\}\\}|`] };
       }
       return { p: 'v', pieces: [`client->_bind( ${value.v} )`] };
     case 'f': return { p: 'v', pieces: [abapString(`{${value.v}}`)] };

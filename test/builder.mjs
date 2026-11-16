@@ -5,7 +5,7 @@
 // ABAP to evaluate what the generator writes into a( ): backtick literals
 // joined with &&, string templates, client->_bind( ) and client->_event( ) -
 // and what the 7.02 class writes instead of a template: the constants of
-// cl_abap_char_utilities, and _bind( val = … path = abap_true ) in a path.
+// cl_abap_char_utilities, and _bind_path( … ) in a path.
 import { escapeBindingLiteral, escapeXml } from '../src/xml.js';
 
 function evalExpr(src) {
@@ -38,7 +38,7 @@ function evalExpr(src) {
           // an embedded expression: the path of a binding
           const close = s.indexOf('}', j);
           const inner = s.slice(j + 1, close).trim();
-          const b = /^client->_bind\( val = (\w+) path = abap_true \)$/.exec(inner);
+          const b = /^client->_bind_path\( (\w+) \)$/.exec(inner);
           if (!b) throw new Error(`embedded expression in template: ${inner}`);
           out += `/${b[1].toUpperCase()}`;
           j = close + 1;
@@ -52,7 +52,7 @@ function evalExpr(src) {
     }
     let m = /^client->_bind\( (\w+) \)/.exec(s.slice(i));
     if (m) { parts.push(`{/${m[1].toUpperCase()}}`); i += m[0].length; continue; }
-    m = /^client->_bind\( val = (\w+) path = abap_true \)/.exec(s.slice(i));
+    m = /^client->_bind_path\( (\w+) \)/.exec(s.slice(i));
     if (m) { parts.push(`/${m[1].toUpperCase()}`); i += m[0].length; continue; }
     m = /^cl_abap_char_utilities=>(newline|cr_lf\(1\)|cr_lf|horizontal_tab)/.exec(s.slice(i));
     if (m) { parts.push({ newline: '\n', 'cr_lf(1)': '\r', cr_lf: '\r\n', horizontal_tab: '\t' }[m[1]]); i += m[0].length; continue; }

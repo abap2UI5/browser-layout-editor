@@ -416,20 +416,24 @@ function templateText(body) {
   return { xml: out };
 }
 
-// client->_bind( name ) -> /NAME, client->_bind( val = s-f path = abap_true )
-// -> /S/F when `bare` is allowed; null for every other call
+// client->_bind( name ) -> /NAME; client->_bind_path( s-f ), which the
+// generator writes, and client->_bind( val = s-f path = abap_true ), the same
+// call as older classes spell it -> /S/F when `bare` is allowed; null for
+// every other call
 function bindPath(expr, bare = false) {
-  const m = /^client->_bind(?:_edit)?\(\s*(.*?)\s*\)$/s.exec(expr);
+  const m = /^client->_bind(_edit|_path)?\(\s*(.*?)\s*\)$/s.exec(expr);
   if (!m) return null;
-  const inner = m[1];
+  const inner = m[2];
   let name = null;
-  let isBare = false;
+  let isBare = m[1] === '_path';
   if (/^(me->)?\w+(-\w+)*$/.test(inner)) name = inner;
   else {
     const named = /^val\s*=\s*((?:me->)?\w+(?:-\w+)*)(\s+path\s*=\s*abap_true)?$/i.exec(inner);
     if (!named) return null;
+    // _bind_path( ) has no path flag to take
+    if (isBare && named[2]) return null;
     name = named[1];
-    isBare = !!named[2];
+    isBare = isBare || !!named[2];
   }
   if (isBare !== bare) return null;
   return '/' + name.replace(/^me->/i, '').toUpperCase().replace(/-/g, '/');

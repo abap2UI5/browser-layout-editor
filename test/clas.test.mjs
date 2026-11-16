@@ -66,6 +66,22 @@ for (const [id, design] of [...allDesigns(), ...allDesigns702()]) {
   });
 }
 
+// Until the linter's bind-path-flag the generator wrote the path of a tree
+// as _bind( val = … path = abap_true ); classes written then are still read,
+// and exported with _bind_path( ), the call the flag stands for
+for (const [id, design] of [...allDesigns(), ...allDesigns702()]) {
+  const src = generateClass(design);
+  if (!src.includes('client->_bind_path( ')) continue;
+  test(`${id}: a tree path spelled _bind( path = abap_true ) imports as _bind_path( ) does`, () => {
+    const old = src.replace(/client->_bind_path\( (\w+) \)/g, 'client->_bind( val = $1 path = abap_true )');
+    assert.notEqual(old, src);
+    const back = fromClass(old, createDesign());
+    assert.deepEqual(classReport().dropped, []);
+    assert.deepEqual(classReport().unresolved, []);
+    assert.equal(generateClassSource(back), src, 'the export writes _bind_path( )');
+  });
+}
+
 test('the attributes and their seeds come out of the class as the data panel holds them', () => {
   const d = allDesigns().find(([id]) => id === 'kitchen-sink-1')[1];
   const back = fromClass(generateClass(d), createDesign());
