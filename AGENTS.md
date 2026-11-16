@@ -46,8 +46,9 @@ The product is the generated class. It must:
   step, so the writer is a copy in `src/vendor/linter/`, made by
   `node tools/vendor-linter.mjs <linter checkout>` and never edited here:
   a layout change goes into abap2UI5/linter and is vendored again
-  (`npm test` holds the copies to `source.json`, and to the pinned linter
-  once that release ships the writer).
+  (`npm test` holds the copies to `source.json` and to the pinned linter,
+  which ships the writer from 0.10.0 on - a linter bump whose writer
+  differs fails there until the copy is vendored again).
 - `defaultAgg` is UI5's default aggregation and nothing else, because
   children of the default aggregation are written without a wrapper tag.
   Where a drop should land somewhere else, use `dropAgg`.

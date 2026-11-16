@@ -323,7 +323,7 @@ test('a table field of a table: nested types, nested rows, a list in a list, a t
   assert.deepEqual(tree.props.items, { m: 'b', v: 't_tree', arr: 'NODES' });
   assert.deepEqual(tree.aggs.items[0].props.title, { m: 'f', v: 'TEXT' });
   assert.ok(toXml(d).includes(`items="{path:'/T_TREE',parameters:{arrayNames:['NODES']}}"`));
-  assert.ok(generateClass(d).includes("v = |\\{path:'{ client->_bind( val = t_tree path = abap_true ) }',parameters:\\{arrayNames:['NODES']\\}\\}|"));
+  assert.ok(generateClass(d).includes("v = |\\{path:'{ client->_bind_path( t_tree ) }',parameters:\\{arrayNames:['NODES']\\}\\}|"));
   // a list inside the row repeats the table field
   const list = createNode('List');
   insertNode(d, list, page(d).id);
