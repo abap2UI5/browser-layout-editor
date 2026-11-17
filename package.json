@@ -20,7 +20,7 @@
     "verify": "npm test && npm run check:abap && npm run verify:abap && npm run test:e2e"
   },
   "devDependencies": {
-    "@abap2ui5/linter": "0.10.0",
+    "@abap2ui5/linter": "0.11.0",
     "@abap2ui5/node-runtime": "1.149.0",
     "@abaplint/cli": "2.120.105",
     "@abaplint/transpiler-cli": "2.14.33",
