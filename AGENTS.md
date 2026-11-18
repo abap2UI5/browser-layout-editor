@@ -84,7 +84,7 @@ The product is the generated class. It must:
 
 ## One of four tools
 
-The Playground, the AI App Builder and the AI Agent (abap2UI5/playground)
+The Playground, the AI App Builder and the AI Agent (abap2UI5/browser-playground)
 and this editor wear one look: the bar on a sunken page with the mark,
 "abap2UI5" and the tool's name in the accent, the work on white cards
 (18px radius, hairline, soft shadow, 14px apart), pills for everything that

@@ -14,7 +14,7 @@
 :root {
   /* The palette of the abap2UI5 tools - the Playground, the AI App Builder
      and the AI Agent wear the same values (src/shell/shell.css in
-     abap2UI5/playground): a sunken page, the work on white cards, one red
+     abap2UI5/browser-playground): a sunken page, the work on white cards, one red
      accent, the red of the logo (CONVENTION.md in
      abap2UI5/abap2UI5.github.io). The canvas keeps the UI5 theme chosen
      for it. */
@@ -34,7 +34,7 @@
      measured it on white (4.74:1). Text in the accent on the grey takes the
      convention's "accent strong" (5.83:1). And text ON the accent: white in
      light (4.74:1), the dark page colour in dark, where white on #f0606d is
-     3.18:1. The same two tokens as src/shell/shell.css in abap2UI5/playground. */
+     3.18:1. The same two tokens as src/shell/shell.css in abap2UI5/browser-playground. */
   --accent-text: #b02e3b;
   --accent-fg: #ffffff;
   --emphasized: #d03c4a;
@@ -399,7 +399,7 @@ table.keys td:first-child { white-space: nowrap; width: 1%; }
 
 /* ---------------------------------------------- the abap2UI5 tools' look
    The Layout Editor wears what the Playground, the AI App Builder and the
-   AI Agent wear (abap2UI5/playground, src/shell/shell.css): the bar on the
+   AI Agent wear (abap2UI5/browser-playground, src/shell/shell.css): the bar on the
    sunken page with the tool's name in the accent as the menu of all four
    tools, the work on white cards with an 18px radius, a hairline and a soft
    shadow, 14px apart, and pills for everything that is pressed - the

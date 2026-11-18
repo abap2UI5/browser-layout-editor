@@ -362,12 +362,12 @@ test('?src= opens a class from a URL, with a report of what the editor keeps as 
 test('Open in Playground opens the playground with the class in the link', async ({ designer: page }) => {
   const original = await page.evaluate(() => window.designer.generateClassSource(window.designer.state.design));
   // the playground itself is not part of this test: its page is answered here
-  await page.context().route('https://abap2ui5.github.io/playground/**', (route) => route.fulfill({ body: '<!doctype html><title>playground</title>', contentType: 'text/html' }));
+  await page.context().route('https://abap2ui5.github.io/browser-playground/**', (route) => route.fulfill({ body: '<!doctype html><title>playground</title>', contentType: 'text/html' }));
   await page.locator('#btnExport').click();
   const [popup] = await Promise.all([page.waitForEvent('popup'), page.locator('#btnPlayground').click()]);
   await popup.waitForLoadState();
   const url = new URL(popup.url());
-  expect(`${url.origin}${url.pathname}`).toBe('https://abap2ui5.github.io/playground/');
+  expect(`${url.origin}${url.pathname}`).toBe('https://abap2ui5.github.io/browser-playground/');
   const files = await popup.evaluate(async (fragment) => {
     const bytes = Uint8Array.from(atob(fragment.slice(1).replaceAll('-', '+').replaceAll('_', '/')), (c) => c.charCodeAt(0));
     const text = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
