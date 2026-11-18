@@ -405,7 +405,7 @@ ENDCLASS.`, attrs);
 });
 
 test('where a class may come from', () => {
-  const here = 'https://abap2ui5.github.io/layout-editor/index.html';
+  const here = 'https://abap2ui5.github.io/browser-layout-editor/index.html';
   assert.equal(sourceUrl('https://raw.githubusercontent.com/abap2UI5/samples/main/src/z2ui5_cl_smp_app_493.clas.abap', here), 'https://raw.githubusercontent.com/abap2UI5/samples/main/src/z2ui5_cl_smp_app_493.clas.abap');
   assert.equal(sourceUrl('https://github.com/abap2UI5/samples/blob/main/src/z2ui5_cl_smp_app_493.clas.abap', here), 'https://raw.githubusercontent.com/abap2UI5/samples/main/src/z2ui5_cl_smp_app_493.clas.abap');
   assert.equal(sourceUrl('/test/fixtures/x.clas.abap', here), 'https://abap2ui5.github.io/test/fixtures/x.clas.abap');

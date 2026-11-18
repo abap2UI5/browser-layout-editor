@@ -1,6 +1,6 @@
 // The hand-off links (src/handoff.js) decode the way their readers decode
 // them: the playground's share fragment as src/shell/share.mjs in
-// abap2UI5/playground reads it (one version character "2", base64url,
+// abap2UI5/browser-playground reads it (one version character "2", base64url,
 // deflate-raw, a JSON array of { name, source }), the VS Code link as the
 // abap2UI5 extension's URI handler reads it (?code= base64url deflate-raw,
 // ?name= the file).

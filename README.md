@@ -6,7 +6,7 @@ and its events. Pull the class into your system with abapGit and build on it
 like any other class. There is no runtime of the editor's own, no metadata
 and no lock-in: the class is all there is.
 
-**Open it: https://abap2ui5.github.io/layout-editor/**
+**Open it: https://abap2ui5.github.io/browser-layout-editor/**
 
 The editor follows the familiar pattern of the SAP Web IDE layout editor:
 controls and outline on the left, the canvas in the middle, properties on
@@ -114,7 +114,7 @@ Also in the editor:
 - **Import XML** brings in an existing UI5 XML view. Controls the palette
   does not know are kept as they are.
 - **Open in Playground** opens the class in the
-  [abap2UI5 playground](https://abap2ui5.github.io/playground/), in a share
+  [abap2UI5 playground](https://abap2ui5.github.io/browser-playground/), in a share
   link of the playground's own format; `?playground=<url>` points it at
   another deployment. **Open in VS Code** hands the class to the abap2UI5
   extension (`vscode://abap2ui5.abap2ui5/open`), which opens it as an

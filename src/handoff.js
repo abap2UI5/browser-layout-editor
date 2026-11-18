@@ -2,7 +2,7 @@
 // and one that opens it in VS Code with the abap2UI5 extension.
 //
 // The playground's share link is its own format (src/shell/share.mjs in
-// abap2UI5/playground): the fragment is one character of version, "2", then
+// abap2UI5/browser-playground): the fragment is one character of version, "2", then
 // base64url of the deflated JSON `[{ name, source }]` - the files it opens,
 // the first one the app it starts. Written here byte for byte the same, so
 // a link from the editor is a link the playground reads today.
@@ -12,7 +12,7 @@
 // (or ?src=<https url> for a class that is on GitHub). The extension opens
 // the class as an untitled .clas.abap document and offers to run it.
 
-export const PLAYGROUND_URL = 'https://abap2ui5.github.io/playground/';
+export const PLAYGROUND_URL = 'https://abap2ui5.github.io/browser-playground/';
 export const VSCODE_URI = 'vscode://abap2ui5.abap2ui5/open';
 
 const CHUNK = 0x8000;
