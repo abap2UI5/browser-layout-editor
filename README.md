@@ -140,7 +140,8 @@ Also in the editor:
   every abap2UI5 tool; *Save design (.json)* in *File* writes the file). In the outline the arrow keys walk
   the tree and a letter jumps to the next control of that name; in the
   control search Enter inserts the first match; the tabs of the drawer go
-  by arrow key too. **?** lists every shortcut.
+  by arrow key too. **?** opens the help: what the editor does, and every
+  shortcut (also *File*, *Help*).
 - **Several controls at once**: Ctrl+click (or Shift+click) on the canvas,
   in the outline or in the code adds a control to the selection. Delete,
   duplicate, move, copy and cut act on all of them; *Wrap in…* puts
@@ -179,14 +180,22 @@ Also in the editor:
 - The editor itself is light, dark or as the system (◐, the last button of
   the bar, with ⛶ for full screen before it). The choice is one for all
   four abap2UI5 tools - set it in the playground and the editor follows;
-  the canvas keeps the UI5 theme chosen for it. The canvas zooms out
+  the canvas follows it too (*Auto*, the default theme: Horizon light or
+  dark), unless a theme is picked for it. The canvas zooms out
   to 75% or 50% for a large view at a glance - the device width stays the
   width the view gets.
 - The outline marks controls bound to data (●) and controls that raise an
   event (⚡); *Copy* above the code copies what the tab shows.
 - The canvas can show a phone or tablet width, the Horizon, Quartz or
-  Belize themes, and any UI5 version. Enter `1.71.80` to see the view on the
-  oldest release abap2UI5 supports.
+  Belize themes, and any UI5 version: *UI5 preview* suggests the releases
+  the playground checks against too; enter `1.71` (or `1.71.80`) to see the
+  view on the oldest release abap2UI5 supports.
+- The bar says what was last done in one line after the class fields, and
+  how many problems there are - a click opens them.
+- On a phone the editor shows one pane at a time: *Controls*, *Design*,
+  *Code*, *Properties*.
+- A first visit gets a hint strip over the canvas (*New here? Try:*);
+  closed once, it stays closed.
 
 ## What the generated class needs
 
@@ -315,7 +324,7 @@ runtime. Run it when the palette gains a control.
 | `src/diff.js` | The line diff of the *Changes* tab |
 | `src/app.js` | The editor UI: wires the panels and renders them on every change |
 | `src/ui/store.js` | The state, commit( ) with undo and the browser store, selection |
-| `src/ui/*.js` | One module per panel: insert, layers, inspector, data, code, preview, palette, files, keys, edit (drop and clipboard), actions (the edits on the selection, for keys, palette, canvas toolbar and context menu), context (the context menu), inline (a text edited on the canvas) |
+| `src/ui/*.js` | One module per panel: insert, layers, inspector, data, code, preview, palette, files, keys (and the help), edit (drop and clipboard), actions (the edits on the selection, for keys, palette, canvas toolbar and context menu), context (the context menu), inline (a text edited on the canvas); and what the editor shares with the other abap2UI5 tools: appearance, canvas-theme, phone, first-steps, ui5field, release, tools |
 | `src/preview/init.js` | The preview frame (a UI5 module) |
 | `tools/` | Dev server, metadata dump, class generation, runtime verification |
 | `test/` | Unit tests, fixtures, the builder model, browser tests |

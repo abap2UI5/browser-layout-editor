@@ -5,7 +5,7 @@
 // abap2ui5.github.io, so THEME_KEY in localStorage (src/family.js) carries
 // it from the playground to this editor and back, and a change in another
 // tab arrives here as a `storage` event. "light" or "dark"; absent means as
-// the system. The canvas keeps the UI5 theme chosen for it.
+// the system. The canvas follows it on Auto (src/ui/canvas-theme.js).
 import { THEME_KEY, THEME_KEYS_BEFORE, APPEARANCE_GLYPH, appearanceTitle, nextAppearance } from '../family.js';
 import { state, savePrefs } from './store.js';
 import { $ } from './dom.js';
@@ -40,7 +40,7 @@ export function appearance() {
   try { return valid(localStorage.getItem(THEME_KEY)); } catch { return held; }
 }
 
-function setAppearance(a) {
+export function setAppearance(a) {
   held = a;
   try {
     if (a) localStorage.setItem(THEME_KEY, a); else localStorage.removeItem(THEME_KEY);
@@ -65,13 +65,15 @@ export function wireAppearance() {
 }
 
 // Full screen: the whole editor, not the canvas - where the browser has it
+export function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+
 export function wireFullscreen() {
   const b = $('#btnFullscreen');
   b.hidden = !document.fullscreenEnabled;
-  b.onclick = () => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else document.documentElement.requestFullscreen().catch(() => {});
-  };
+  b.onclick = toggleFullscreen;
   document.addEventListener('fullscreenchange', () => {
     const on = !!document.fullscreenElement;
     b.setAttribute('aria-pressed', String(on));

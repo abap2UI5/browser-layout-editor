@@ -432,7 +432,23 @@ sap.ui.define([
   // turns out older gets Quartz, as a version from the CDN does
   var minor = /^1\.(\d+)\./.exec(sap.ui.version);
   var core = sap.ui.getCore();
-  if (minor && Number(minor[1]) < 102 && core.getConfiguration().getTheme() === 'sap_horizon') core.applyTheme('sap_fiori_3');
+  var noHorizon = !!(minor && Number(minor[1]) < 102);
+  // Horizon, light or dark, on a UI5 that has it - Quartz on one that has not
+  var themeFor = function (theme) {
+    if (!noHorizon) return theme;
+    return theme === 'sap_horizon' ? 'sap_fiori_3' : theme === 'sap_horizon_dark' ? 'sap_fiori_3_dark' : theme;
+  };
+  var booted = core.getConfiguration().getTheme();
+  if (themeFor(booted) !== booted) core.applyTheme(themeFor(booted));
+  // the editor's appearance changed and the canvas follows it (Auto): the
+  // theme switches in place, UI5 does not boot again
+  window.addEventListener('message', function (e) {
+    var msg = e.data || {};
+    if (msg.target !== 'dsg-preview' || msg.type !== 'theme' || e.source !== window.parent) return;
+    if (location.origin !== 'null' && e.origin !== location.origin) return;
+    var next = themeFor(String(msg.theme || '').replace(/[^\w]/g, ''));
+    if (next && next !== core.getConfiguration().getTheme()) core.applyTheme(next);
+  });
 
   post({ type: 'ready', version: sap.ui.version });
 });

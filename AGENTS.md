@@ -117,8 +117,27 @@ pills for everything that is pressed, Inter (`fonts/`, self-hosted).
   playground's share fragment (`src/handoff.js`), at `toolUrl( )` against
   the playground's address.
 - Ctrl+S keeps a draft in this browser, as in every tool - never a download.
+- `?` opens the help every tool has (`helpDialog( )` in `src/ui/keys.js`):
+  `HELP.title`, then `HELP.about` (what the editor does) and `HELP.keys`
+  (the `SHORTCUTS` table) - one place lists the keys.
+- The status is one muted line right after the class fields (`#statusText`,
+  `setStatus( )` in `src/ui/dom.js`): every toast lands there too, and the
+  problems are a link to their list. Never a second place that says what
+  happened.
+- Below 820px one pane at a time behind the pills *Controls | Design |
+  Code | Properties* (`src/ui/phone.js`, `.workspace[data-pane]`); the bar
+  drops the word "abap2UI5" there, as the other tools do.
+- The first visit gets the playground's hint strip, `FIRST_STEPS` with four
+  chips that act (`src/ui/first-steps.js`); closed once, closed for good,
+  and never over a design that came by link or an opened class. The
+  browser tests start with it closed (`test/e2e/fixtures.mjs`).
+- The UI5 field of the canvas suggests `UI5_RELEASES` (labels by
+  `ui5Label`), the releases the playground's UI5 check offers
+  (`src/ui/ui5field.js`).
 
-The canvas keeps the UI5 theme chosen for it.
+The canvas theme is *Auto* by default (`src/ui/canvas-theme.js`): Horizon,
+light or dark as the editor - Quartz on a UI5 before 1.102 - switched in
+place, without booting UI5 again. A theme picked in the select stays.
 
 ## Commands
 

@@ -12,21 +12,25 @@ import { validate, checkClassName, normalizeDesign } from './model.js';
 import { generateClass, fileName } from './abap.js';
 import { generateClassSource } from './clas.js';
 import { toXml } from './xml.js';
-import { state, on, loadPrefs, savePrefs, loadDesign, designFromLink, replaceDesign, commit, undo, redo, select, showPanel, labelOfSelection, isUi5Url, onOtherTab } from './ui/store.js';
+import { state, on, loadPrefs, savePrefs, loadDesign, designFromLink, replaceDesign, commit, undo, redo, select, showPanel, labelOfSelection, onOtherTab } from './ui/store.js';
 import { $, toast, download } from './ui/dom.js';
 import { renderInsert, renderInsertTarget, onInsertKey } from './ui/insert.js';
 import { renderLayers, onLayersKey, clearDropMarks, renderCrumbs } from './ui/layers.js';
 import { renderInspector } from './ui/inspector.js';
 import { renderData, renderIssues } from './ui/data.js';
 import { renderCode, highlightCode, setCode, setView, copyText, codeText } from './ui/code.js';
-import { loadPreview, postPreview, sendPreview, renderEventLog } from './ui/preview.js';
+import { loadPreview, postPreview, sendPreview, renderEventLog, themePreview } from './ui/preview.js';
 import { handleDrop, copySelection, pasteSelection, addControlByName, addControl } from './ui/edit.js';
 import { openPalette } from './ui/palette.js';
 import { newDialog, importDialog, openClassDialog, openClassFromUrl, openClassFromPlayground, recentDialog, shareLink, openFile, saveDesign, saveToBrowser, exportZip, openIn, openInVscode } from './ui/files.js';
-import { onKey } from './ui/keys.js';
+import { onKey, helpDialog } from './ui/keys.js';
 import { wireAppearance, wireFullscreen } from './ui/appearance.js';
 import { fillToolMenu, fillOpenIn } from './ui/tools.js';
 import { fillReleaseSelect, releaseOfDesign, designRelease, rememberRelease } from './ui/release.js';
+import { followAppearance } from './ui/canvas-theme.js';
+import { fillUi5List, readUi5, minorOf } from './ui/ui5field.js';
+import { wirePhoneTabs, showPane, onPhone } from './ui/phone.js';
+import { showFirstSteps, closeFirstSteps } from './ui/first-steps.js';
 
 
 // every menu closes the others when it opens - and says so to a screen reader
@@ -175,6 +179,7 @@ function wire() {
   $('#btnSaveBrowser').onclick = saveToBrowser;
   $('#btnImport').onclick = importDialog;
   $('#btnRecent').onclick = recentDialog;
+  $('#btnHelp').onclick = helpDialog;
   $('#btnShare').onclick = shareLink;
   $('#btnUndo').onclick = undo;
   wireAppearance();
@@ -221,21 +226,38 @@ function wire() {
   const zoom = $('#zoom');
   zoom.value = String(Number(state.prefs.zoom) || 1);
   zoom.onchange = () => { state.prefs.zoom = Number(zoom.value); setDevice(state.prefs.device); savePrefs(); };
+  // the canvas theme: Auto follows the editor's appearance (src/ui/canvas-theme.js)
   const theme = $('#theme');
-  theme.value = state.prefs.theme;
-  theme.onchange = () => { state.prefs.theme = theme.value; savePrefs(); loadPreview(); };
+  theme.value = state.prefs.theme || 'auto';
+  const themeChosen = followAppearance(themePreview);
+  theme.onchange = () => { state.prefs.theme = theme.value; savePrefs(); themeChosen(); loadPreview(); };
+  // the UI5 of the canvas: a release of the list, any version or a URL
   const ver = $('#ui5version');
+  fillUi5List($('#ui5versions'));
   ver.value = state.prefs.ui5 && !state.prefs.ui5.startsWith('local') ? state.prefs.ui5 : '';
   ver.onchange = () => {
-    const v = ver.value.trim();
-    if (v && !/^\d+\.\d+\.\d+$/.test(v) && !isUi5Url(v)) { ver.classList.add('invalid'); toast('A version like 1.71.80, the URL of a UI5 of your own, or empty for the latest'); return; }
+    const v = readUi5(ver.value);
+    if (v === null) { ver.classList.add('invalid'); toast('A version like 1.71 or 1.71.80, the URL of a UI5 of your own, or latest'); return; }
     ver.classList.remove('invalid');
+    ver.value = v;
     state.prefs.ui5 = v;
-    const minor = /^1\.(\d+)\./.exec(v);
-    if (minor && Number(minor[1]) < 102 && state.prefs.theme === 'sap_horizon') { state.prefs.theme = 'sap_fiori_3'; theme.value = 'sap_fiori_3'; }
+    const minor = minorOf(v);
+    if (minor !== null && minor < 102 && /^sap_horizon/.test(state.prefs.theme)) {
+      state.prefs.theme = state.prefs.theme === 'sap_horizon_dark' ? 'sap_fiori_3_dark' : 'sap_fiori_3';
+      theme.value = state.prefs.theme;
+    }
     savePrefs();
     loadPreview();
   };
+  // the problems the status names: a click opens their list (on a phone,
+  // the Controls pane that holds it)
+  $('#statusProblems').onclick = () => { showPanel('issues'); if (onPhone()) showPane('drawer'); };
+  // one pane at a time below 820px; a pane that comes on screen shows the
+  // design as it is now
+  wirePhoneTabs((pane) => {
+    if (pane === 'code') renderCode();
+    else if (pane === 'drawer') renderPanel();
+  });
   document.addEventListener('keydown', onKey);
 
   // the drawer and the properties can be dragged wider or narrower
@@ -299,6 +321,19 @@ window.addEventListener('hashchange', openLinkedDesign);
 // a class the playground handed over: #playground=<its share fragment>
 openClassFromPlayground();
 window.addEventListener('hashchange', openClassFromPlayground);
+
+// the first visit's hint strip - not over a design a link or a class brought
+const fromLink = location.hash.startsWith('#d=') || location.hash.startsWith('#playground=') || new URLSearchParams(location.search).has('src') || new URLSearchParams(location.search).has('class');
+if (!fromLink) {
+  showFirstSteps({
+    controls: () => { showPanel('insert'); if (onPhone()) showPane('drawer'); const list = $('#insertList'); list.classList.add('is-pointed'); setTimeout(() => list.classList.remove('is-pointed'), 1600); $('#insertSearch').focus(); },
+    tryView: () => { if (onPhone()) showPane('canvas'); $('[data-mode="interact"]').click(); },
+    template: newDialog,
+    exportMenu: () => { $('#btnExport').click(); },
+  });
+}
+// a design that arrives later by link takes the strip away for this visit
+window.addEventListener('hashchange', () => closeFirstSteps(false));
 
 // for the browser tests and the curious: the state and the generators
 window.designer = { state, generateClass, generateClassSource, toXml, validate, select, commit, handleDrop, openPalette, copySelection, pasteSelection, addControlByName, addControl };

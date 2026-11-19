@@ -53,11 +53,12 @@
         : v ? 'https://sdk.openui5.org/' + encodeURIComponent(v) + '/resources/sap-ui-core.js'
         : 'https://sdk.openui5.org/resources/sap-ui-core.js';
       var theme = p.get('theme') || 'sap_horizon';
-      // Horizon exists from 1.102 on; an older release gets Quartz
+      // Horizon exists from 1.102 on; an older release gets Quartz, light
+      // or dark
       // (a URL of your own that names no version: src/preview/init.js
       // switches once UI5 says which it is)
-      var minor = /^1\.(\d+)\./.exec(v) || (local && local[1] && /^1\.?(\d+)/.exec(local[1])) || (own && /\b1\.(\d+)\.\d+\b/.exec(v));
-      if (theme === 'sap_horizon' && minor && Number(minor[1]) < 102) theme = 'sap_fiori_3';
+      var minor = /^1\.(\d+)(?:\.|$)/.exec(v) || (local && local[1] && /^1\.?(\d+)/.exec(local[1])) || (own && /\b1\.(\d+)\.\d+\b/.exec(v));
+      if (minor && Number(minor[1]) < 102) theme = theme === 'sap_horizon' ? 'sap_fiori_3' : theme === 'sap_horizon_dark' ? 'sap_fiori_3_dark' : theme;
       document.write('<script id="sap-ui-bootstrap" src="' + src + '" data-sap-ui-theme="' + theme.replace(/[^\w]/g, '') +
         '" data-sap-ui-libs="sap.m" data-sap-ui-compatVersion="edge" data-sap-ui-async="true" data-sap-ui-oninit="module:designer/init"' +
         ' data-sap-ui-resourceroots=\'{"designer": "./src/preview"}\'><\/script>');

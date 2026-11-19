@@ -363,6 +363,7 @@ export async function exportZip() {
     if (go !== 'export') return;
   }
   const bytes = zip(classFiles(d));
-  download(`${d.className.toLowerCase().replace(/\//g, '#')}.zip`, new Blob([bytes], { type: 'application/zip' }));
-  toast('Exported - abapGit: New Offline, Import ZIP');
+  const name = `${d.className.toLowerCase().replace(/\//g, '#')}.zip`;
+  download(name, new Blob([bytes], { type: 'application/zip' }));
+  toast(`Exported ${name} - abapGit: New Offline, Import ZIP`);
 }

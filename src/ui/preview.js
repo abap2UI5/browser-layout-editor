@@ -10,6 +10,7 @@ import { onKey } from './keys.js';
 import { deleteSelection, duplicateSelection, moveSelection, selectParent } from './actions.js';
 import { openContextMenu, closeContextMenu } from './context.js';
 import { openInlineEdit, closeInlineEdit } from './inline.js';
+import { canvasTheme } from './canvas-theme.js';
 
 
 let previewTimer = null;
@@ -17,7 +18,7 @@ let previewTimer = null;
 function previewUrl() {
   const q = new URLSearchParams();
   if (state.prefs.ui5) q.set('ui5', state.prefs.ui5);
-  if (state.prefs.theme) q.set('theme', state.prefs.theme);
+  q.set('theme', canvasTheme());
   return `preview.html?${q}`;
 }
 
@@ -46,6 +47,12 @@ function previewStatus(text, level, reload) {
   if (text && reload) el.append(h('button', { class: 'link', title: 'Reload the canvas', onclick: () => loadPreview() }, 'Reload canvas'));
   el.title = text || '';
   el.className = `preview-status${text ? '' : ' hidden'}${level ? ` ${level}` : ''}`;
+}
+
+// the canvas takes another theme without booting UI5 again (Auto, when the
+// editor's appearance changes)
+export function themePreview(theme) {
+  postPreview({ type: 'theme', theme });
 }
 
 export function postPreview(msg) {
@@ -180,7 +187,8 @@ window.addEventListener('message', (e) => {
   if (msg.type === 'ready') {
     state.previewReady = true;
     previewStatus('');
-    $('#ui5version').placeholder = `UI5 ${msg.version}`;
+    $('#ui5version').placeholder = `latest - ${msg.version}`;
+    $('#ui5version').dataset.running = msg.version;
     sendPreview(true);
     describeUnknown();
     // the properties shown before UI5 was there learn their defaults
