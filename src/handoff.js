@@ -12,8 +12,13 @@
 // (or ?src=<https url> for a class that is on GitHub). The extension opens
 // the class as an untitled .clas.abap document and offers to run it.
 
-export const PLAYGROUND_URL = 'https://abap2ui5.github.io/browser-playground/';
-export const VSCODE_URI = 'vscode://abap2ui5.abap2ui5/open';
+// Where the playground is and the extension's URI: src/family.js, the
+// playground's own list of the abap2UI5 tools. The AI App Builder (ai/) and
+// the AI Agent (pilot/) beside the playground read the same fragment.
+import { PLAYGROUND_ROOT, VSCODE_URI } from './family.js';
+
+export const PLAYGROUND_URL = PLAYGROUND_ROOT;
+export { VSCODE_URI };
 
 const CHUNK = 0x8000;
 

@@ -8,6 +8,7 @@ import { findNode, normalizeDesign } from '../model.js';
 import { STARTERS } from '../starters.js';
 import { toBase64Url } from '../handoff.js';
 import { $, displayType, toastError } from './dom.js';
+import { withStoredRelease } from './release.js';
 
 const listeners = { change: [], select: [], panel: [] };
 // on('change', fn(opts)) after every edit, on('select', fn(opts)) after
@@ -96,7 +97,7 @@ export function loadDesign() {
       return normalizeDesign(JSON.parse(raw));
     }
   } catch { /* start fresh */ }
-  return STARTERS.find((s) => s.id === 'form').make();
+  return withStoredRelease(STARTERS.find((s) => s.id === 'form').make());
 }
 
 // A design in a link: #d=<base64 of the deflated JSON> - a few kilobytes

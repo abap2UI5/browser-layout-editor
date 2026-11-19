@@ -43,10 +43,13 @@ outline · data · checks         properties
 4. **Name events.** Give a button's `press` (or any other event) a name.
    It becomes `client->_event( )` in the view and a `WHEN` branch in
    `on_event`.
-5. **Export.** *Export* downloads the class with its abapGit files. In
-   abapGit, choose *New Offline* → *Import ZIP* and pull. Start the app with
-   `?app_start=zcl_my_app`. The menu next to it has the plain `.clas.abap`
-   and copy to clipboard.
+5. **Export.** *Export* → *Download for abapGit (.zip)* downloads the class
+   with its abapGit files. In abapGit, choose *New Offline* → *Import ZIP*
+   and pull. Start the app with `?app_start=zcl_my_app`. The same menu -
+   the one every abap2UI5 tool carries, with the same entries - copies the
+   ABAP or a share link, opens the class in the Playground, the AI App
+   Builder, the AI Agent or VS Code, and has the plain `.clas.abap` and the
+   XML view.
 
 The class follows the abap2UI5 app template exactly: one class implementing
 `z2ui5_if_app`, `main` as the single `IF`/`ELSEIF` dispatcher, bound data in
@@ -90,13 +93,13 @@ Also in the editor:
   own): the field at the end of *Controls*, or Ctrl+K. The canvas asks its
   UI5 for the control's properties, aggregations and events, and from then
   on it works like one of the palette's. Nothing has checked it against
-  1.71, and *Checks* says so.
+  1.71, and *Problems* says so.
 - **Open ABAP class** reads an existing abap2UI5 app class: paste it, open
   a `.clas.abap` file, or link it with `?src=<raw URL>` (the playground's
   parameter; raw.githubusercontent.com, a github.com file page, or a gist)
   or `?class=<name>&repo=<owner/repo>[&ref=<branch>][&path=<folder>]`.
   The playground's **Open in Layout Editor** hands its app class over as
-  `#playground=<its share fragment>`, the format **Open in Playground**
+  `#playground=<its share fragment>`, the format *Export* → *Open in*
   writes, read the other way; the first file is the class.
   The `z2ui5_cl_ui5_view_builder` chain becomes the design, the public
   attributes the data, `client->_event( )` the event names. Export writes
@@ -113,18 +116,19 @@ Also in the editor:
   with the reason.
 - **Import XML** brings in an existing UI5 XML view. Controls the palette
   does not know are kept as they are.
-- **Open in Playground** opens the class in the
-  [abap2UI5 playground](https://abap2ui5.github.io/browser-playground/), in a share
-  link of the playground's own format; `?playground=<url>` points it at
-  another deployment. **Open in VS Code** hands the class to the abap2UI5
+- **Export → Open in** opens the class in the
+  [abap2UI5 playground](https://abap2ui5.github.io/browser-playground/), the AI
+  App Builder or the AI Agent beside it, in a share link of the
+  playground's own format, which all three read; `?playground=<url>` points
+  them at another deployment. **VS Code** hands the class to the abap2UI5
   extension (`vscode://abap2ui5.abap2ui5/open`), which opens it as an
   unsaved `.clas.abap` and offers to run it.
 - **Save / Open** stores the design as JSON so you can continue later. The
   design is also kept in the browser between visits (when the browser
   refuses to keep it, the editor says so; when another tab of the editor
-  saves over it, too, with a button to load that one). *Save in browser*
-  keeps it there under its class name, next to others; *Designs in this
-  browser* lists those, and what New, Open or Import replaced. **Copy share
+  saves over it, too, with a button to load that one). *Save as draft*
+  (Ctrl+S) keeps it there under its class name, next to others; *Drafts…*
+  lists those, and what New, Open or Import replaced. **Copy share
   link** puts the whole design into a URL - open it anywhere, the editor
   loads it (a link of more than 8 kB says so: some chats and mail cut it).
 - **Undo/redo** with Ctrl+Z and Ctrl+Shift+Z - each step brings back the
@@ -132,7 +136,8 @@ Also in the editor:
   selection, **Ctrl+D** duplicates it, **Ctrl+↑ / Ctrl+↓** move it among
   its siblings, **Ctrl+C / Ctrl+X / Ctrl+V** copy, cut and paste it (also
   into another design or tab), **Alt+↑** selects the parent, **Escape**
-  the view, **Ctrl+S** saves the design. In the outline the arrow keys walk
+  the view, **Ctrl+S** keeps the design as a draft in this browser (as in
+  every abap2UI5 tool; *Save design (.json)* in *File* writes the file). In the outline the arrow keys walk
   the tree and a letter jumps to the next control of that name; in the
   control search Enter inserts the first match; the tabs of the drawer go
   by arrow key too. **?** lists every shortcut.
@@ -156,7 +161,7 @@ Also in the editor:
 - A drop on the canvas lands before, into or after the control under the
   pointer: the upper quarter is before, the lower after. The panels on the
   left and right can be dragged wider.
-- **Checks** lists what would break the class or the view, and inputs
+- **Problems** lists what would break the class or the view, and inputs
   whose entry goes nowhere. A click on a line selects the control and
   focuses the property it is about; where there is one fix, a button does
   it: create the attribute a binding names, remove an unused one, reset a
@@ -169,10 +174,12 @@ Also in the editor:
   order of the declarations), and *Paste rows…* takes sample rows copied
   from a spreadsheet or CSV - with a header line, the columns go to the
   fields of the same name, and a new name becomes a new field.
-- **Preview** mode lists the events the view raised, with what the user
+- **Try** mode lists the events the view raised, with what the user
   had changed in the model by then - what `on_event` would read.
-- The editor itself is light, dark or as the system (◐ in the bar at the
-  top); the canvas keeps the UI5 theme chosen for it. The canvas zooms out
+- The editor itself is light, dark or as the system (◐, the last button of
+  the bar, with ⛶ for full screen before it). The choice is one for all
+  four abap2UI5 tools - set it in the playground and the editor follows;
+  the canvas keeps the UI5 theme chosen for it. The canvas zooms out
   to 75% or 50% for a large view at a glance - the device width stays the
   width the view gets.
 - The outline marks controls bound to data (●) and controls that raise an
@@ -187,7 +194,9 @@ Also in the editor:
   verified against **abap2UI5 1.149.0**.
 - ABAP 7.40 or later, or ABAP Cloud. The class uses inline declarations and
   `VALUE #( )`, like every abap2UI5 sample. For an older system, choose
-  **ABAP 7.02** next to the class name: the class then declares its
+  **ABAP 7.02 - 7.31** next to the class name (the same four releases as
+  in the AI App Builder, remembered for every abap2UI5 tool; 7.40, 7.50+
+  and ABAP Cloud write the 7.40 class): the class then declares its
   variables at the top of a method, fills its sample rows with `APPEND`,
   and writes a line break as `cl_abap_char_utilities=>newline` joined with
   `&&` - no inline declarations, string templates or constructor

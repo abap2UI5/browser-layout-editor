@@ -134,7 +134,7 @@ export function propertyDefaults(type, then) {
   return null;
 }
 
-// What the events of Preview mode did: their names, and what the user
+// What the events of Try mode did: their names, and what the user
 // had changed in the model by then - the values on_event would read
 const eventLog = [];
 function changesOf(model) {

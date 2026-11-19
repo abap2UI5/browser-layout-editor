@@ -3,7 +3,7 @@
 // class is the product, so the code is never hidden - canvas and class sit
 // side by side, a control and its lines in the chain are selected together.
 //
-// Left: controls, outline, data and checks as tabs. Middle: the canvas (real
+// Left: controls, outline, data and problems as tabs. Middle: the canvas (real
 // UI5 in a frame) and the class. Right: the properties. All state is the
 // design document (model.js) in src/ui/store.js; every edit goes through
 // commit( ), which records undo, saves to localStorage and tells this
@@ -22,8 +22,11 @@ import { renderCode, highlightCode, setCode, setView, copyText, codeText } from 
 import { loadPreview, postPreview, sendPreview, renderEventLog } from './ui/preview.js';
 import { handleDrop, copySelection, pasteSelection, addControlByName, addControl } from './ui/edit.js';
 import { openPalette } from './ui/palette.js';
-import { newDialog, importDialog, openClassDialog, openClassFromUrl, openClassFromPlayground, recentDialog, shareLink, openFile, saveDesign, saveToBrowser, exportZip, openInPlayground, openInVscode } from './ui/files.js';
+import { newDialog, importDialog, openClassDialog, openClassFromUrl, openClassFromPlayground, recentDialog, shareLink, openFile, saveDesign, saveToBrowser, exportZip, openIn, openInVscode } from './ui/files.js';
 import { onKey } from './ui/keys.js';
+import { wireAppearance, wireFullscreen } from './ui/appearance.js';
+import { fillToolMenu, fillOpenIn } from './ui/tools.js';
+import { fillReleaseSelect, releaseOfDesign, designRelease, rememberRelease } from './ui/release.js';
 
 
 // every menu closes the others when it opens - and says so to a screen reader
@@ -46,16 +49,6 @@ function wireMenu(button, menu) {
   button.addEventListener('keydown', onEscape);
 }
 
-
-// the editor's own appearance: as the system, light or dark - the canvas
-// keeps the UI5 theme chosen for it
-const APPEARANCE = { '': 'as the system', light: 'light', dark: 'dark' };
-function applyAppearance() {
-  const a = state.prefs.appearance || '';
-  if (a) document.documentElement.dataset.theme = a; else delete document.documentElement.dataset.theme;
-  $('#btnTheme').title = `Appearance of the editor: ${APPEARANCE[a]} - click for ${APPEARANCE[{ '': 'light', light: 'dark', dark: '' }[a]]}`;
-  $('#btnTheme').textContent = { '': '◐', light: '☀', dark: '☾' }[a];
-}
 
 function applyWidths() {
   const ws = $('.workspace');
@@ -107,7 +100,7 @@ function renderAll(opts = {}) {
   if (document.activeElement !== cn) cn.value = d.className;
   cn.classList.toggle('invalid', !!checkClassName(d.className));
   if (document.activeElement !== $('#description')) $('#description').value = d.description || '';
-  $('#abapRelease').value = d.release || '';
+  $('#abapRelease').value = releaseOfDesign(d);
   // what is not on screen renders when it comes on screen (renderPanel,
   // setView) - the outline, the data and the class of a large design are
   // the cost of every keystroke otherwise
@@ -160,17 +153,23 @@ function wire() {
     commit((d) => { d.className = v; }, { mergeKey: 'className', keepFocus: true });
   });
   $('#description').addEventListener('input', (e) => commit((d) => { d.description = e.target.value; }, { mergeKey: 'description', keepFocus: true }));
-  $('#abapRelease').addEventListener('change', (e) => commit((d) => { if (e.target.value) d.release = e.target.value; else delete d.release; }));
+  // the release chosen is remembered for every abap2UI5 tool (RELEASE_KEY)
+  fillReleaseSelect($('#abapRelease'));
+  $('#abapRelease').addEventListener('change', (e) => {
+    rememberRelease(e.target.value);
+    const r = designRelease(e.target.value);
+    commit((d) => { if (r) d.release = r; else delete d.release; });
+  });
   wireMenu($('#btnFile'), $('#fileMenu'));
   wireMenu($('#btnExport'), $('#exportMenu'));
   // the menu of the four abap2UI5 tools behind the tool's name; the one on
   // screen is not opened again - that would only reload the editor
+  fillToolMenu();
   wireMenu($('#btnTools'), $('#toolMenu'));
-  $('#toolMenu a[aria-current]').addEventListener('click', (e) => e.preventDefault());
   $('#btnNew').onclick = newDialog;
   $('#btnOpen').onclick = () => openFile('.json,.xml,.abap');
   $('#btnOpenClass').onclick = openClassDialog;
-  $('#btnPlayground').onclick = openInPlayground;
+  fillOpenIn(openIn);
   $('#btnVscode').onclick = openInVscode;
   $('#btnSave').onclick = saveDesign;
   $('#btnSaveBrowser').onclick = saveToBrowser;
@@ -178,16 +177,11 @@ function wire() {
   $('#btnRecent').onclick = recentDialog;
   $('#btnShare').onclick = shareLink;
   $('#btnUndo').onclick = undo;
-  $('#btnTheme').onclick = () => {
-    state.prefs.appearance = { '': 'light', light: 'dark', dark: '' }[state.prefs.appearance || ''];
-    savePrefs();
-    applyAppearance();
-  };
-  applyAppearance();
+  wireAppearance();
+  wireFullscreen();
   $('#btnRedo').onclick = redo;
   $('#btnCmd').onclick = openPalette;
   $('#btnZip').onclick = exportZip;
-  $('#btnZip2').onclick = exportZip;
   $('#btnCopy').onclick = () => copyText(generateClassSource(state.design), 'ABAP');
   $('#btnCopyXml').onclick = () => copyText(toXml(state.design), 'XML');
   $('#btnCopyCode').onclick = () => { const c = codeText(); copyText(c.text, c.what); };

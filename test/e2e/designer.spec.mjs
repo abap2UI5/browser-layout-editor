@@ -124,6 +124,7 @@ test('undo and redo', async ({ designer: page }) => {
 });
 
 test('the abapGit ZIP downloads with the class in it', async ({ designer: page }) => {
+  await page.locator('#btnExport').click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#btnZip').click()]);
   expect(download.suggestedFilename()).toBe('zcl_my_form.zip');
   const chunks = await (await download.createReadStream()).toArray();
@@ -266,9 +267,9 @@ test('any UI5 control by class name: the canvas describes it, the properties kno
   expect(abap).toContain(')->tag( `Avatar`');
   expect(abap).toContain('v = `AB`');
   await expect(preview(page).locator('.sapFAvatar, .sapMAvatar').first()).toBeVisible();
-  // it stays in the palette for the next insert, and Checks says it is unchecked
+  // it stays in the palette for the next insert, and Problems says it is unchecked
   await expect(page.locator('.ins-item.runtime[data-type="Avatar"]')).toBeVisible();
-  await page.getByRole('tab', { name: 'Checks' }).click();
+  await page.getByRole('tab', { name: 'Problems' }).click();
   await expect(page.locator('#issuesPanel')).toContainText('not checked against UI5 1.71');
 });
 
@@ -289,7 +290,7 @@ test('a tree gets its nodes from a table with a table field, in one click', asyn
   await card.locator('button', { hasText: '+ NODES row' }).first().click();
   await card.locator('.nested-rows input[type=text]').nth(2).fill('Third child');
   expect(await abapOf(page)).toContain('( text = `Third child` )');
-  await page.getByRole('tab', { name: 'Checks' }).click();
+  await page.getByRole('tab', { name: 'Problems' }).click();
   await expect(page.locator('#issuesPanel')).not.toContainText('✕');
 });
 
@@ -364,7 +365,7 @@ test('Open in Playground opens the playground with the class in the link', async
   // the playground itself is not part of this test: its page is answered here
   await page.context().route('https://abap2ui5.github.io/browser-playground/**', (route) => route.fulfill({ body: '<!doctype html><title>playground</title>', contentType: 'text/html' }));
   await page.locator('#btnExport').click();
-  const [popup] = await Promise.all([page.waitForEvent('popup'), page.locator('#btnPlayground').click()]);
+  const [popup] = await Promise.all([page.waitForEvent('popup'), page.locator('#exportMenu [data-open-in="playground"]').click()]);
   await popup.waitForLoadState();
   const url = new URL(popup.url());
   expect(`${url.origin}${url.pathname}`).toBe('https://abap2ui5.github.io/browser-playground/');
@@ -377,13 +378,14 @@ test('Open in Playground opens the playground with the class in the link', async
 });
 
 test('the class is written for ABAP 7.02 when chosen, and saved with the design', async ({ designer: page }) => {
-  await page.locator('#abapRelease').selectOption('702');
+  await expect(page.locator('#abapRelease')).toHaveValue('v750');
+  await page.locator('#abapRelease').selectOption('v702');
   await expect(page.locator('#code')).toContainText('DATA view TYPE REF TO z2ui5_cl_ui5_view_builder.');
   await expect(page.locator('#code')).toContainText('IF client->check_on_init( ) = abap_true.');
   expect(await abapOf(page)).not.toMatch(/DATA\(|VALUE #\(/);
   expect(await page.evaluate(() => window.designer.state.design.release)).toBe('702');
   await page.keyboard.press('Control+z');
-  await expect(page.locator('#abapRelease')).toHaveValue('');
+  await expect(page.locator('#abapRelease')).toHaveValue('v750');
   await expect(page.locator('#code')).toContainText('DATA(view) = z2ui5_cl_ui5_view_builder=>factory(');
 });
 
@@ -484,4 +486,64 @@ test('after a view that failed, the next new view renders at once - no id of the
     await expect(preview(page).getByText(`Round ${round}`)).toBeVisible();
     await expect(page.locator('#previewStatus')).toBeHidden();
   }
+});
+
+test('the release is one select with the four entries of every abap2UI5 tool, remembered for all of them', async ({ designer: page }) => {
+  const select = page.locator('#abapRelease');
+  expect(await select.locator('option').allTextContents()).toEqual(['ABAP 7.02 - 7.31', 'ABAP 7.40', 'ABAP 7.50+ / S/4HANA', 'ABAP Cloud']);
+  await select.selectOption('Cloud');
+  expect(await page.evaluate(() => localStorage.getItem('abap2ui5:abap-release'))).toBe('Cloud');
+  // ABAP Cloud is a 7.40+ class
+  expect(await page.evaluate(() => window.designer.state.design.release)).toBeUndefined();
+  await select.selectOption('v702');
+  expect(await page.evaluate(() => localStorage.getItem('abap2ui5:abap-release'))).toBe('v702');
+  // a new design is written for the release remembered
+  await page.locator('#btnFile').click();
+  await page.locator('#btnNew').click();
+  await page.locator('#dlg .starter').first().click();
+  expect(await page.evaluate(() => window.designer.state.design.release)).toBe('702');
+  await expect(select).toHaveValue('v702');
+});
+
+test('the Export menu carries the entries of every abap2UI5 tool, and hands the class to the others', async ({ designer: page }) => {
+  await page.locator('#btnExport').click();
+  const items = await page.locator('#exportMenu button').allTextContents();
+  expect(items).toEqual(['Download for abapGit (.zip)', 'Copy ABAP', 'Copy share link', 'Playground', 'AI App Builder', 'AI Agent', 'VS Code', 'Download ABAP (.clas.abap)', 'Copy XML view']);
+  await expect(page.locator('#exportMenu .menu-head')).toHaveText('Open in');
+  const original = await page.evaluate(() => window.designer.generateClassSource(window.designer.state.design));
+  await page.context().route('https://abap2ui5.github.io/browser-playground/**', (route) => route.fulfill({ body: '<!doctype html><title>tool</title>', contentType: 'text/html' }));
+  for (const [id, path] of [['ai', '/browser-playground/ai/'], ['pilot', '/browser-playground/pilot/']]) {
+    if (!(await page.locator('#exportMenu').isVisible())) await page.locator('#btnExport').click();
+    const [popup] = await Promise.all([page.waitForEvent('popup'), page.locator(`#exportMenu [data-open-in="${id}"]`).click()]);
+    await popup.waitForLoadState();
+    const url = new URL(popup.url());
+    expect(`${url.origin}${url.pathname}`).toBe(`https://abap2ui5.github.io${path}`);
+    const files = await popup.evaluate(async (fragment) => {
+      const bytes = Uint8Array.from(atob(fragment.slice(1).replaceAll('-', '+').replaceAll('_', '/')), (c) => c.charCodeAt(0));
+      return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
+    }, url.hash.slice(1));
+    expect(url.hash.slice(1, 2)).toBe('2');
+    expect(files).toEqual([{ name: 'zcl_my_form.clas.abap', source: original }]);
+    await popup.close();
+  }
+});
+
+test('the tool menu lists the four abap2UI5 tools, this one marked', async ({ designer: page }) => {
+  await page.locator('#btnTools').click();
+  const links = page.locator('#toolMenu a');
+  expect(await links.locator('b').allTextContents()).toEqual(['Playground', 'Layout Editor', 'AI App Builder', 'AI Agent']);
+  await expect(links.nth(1)).toHaveAttribute('aria-current', 'page');
+  expect(await links.nth(2).getAttribute('href')).toBe('https://abap2ui5.github.io/browser-playground/ai/');
+});
+
+test('Ctrl+S keeps the design as a draft in this browser, never a download', async ({ designer: page }) => {
+  await page.evaluate(() => window.designer.commit((d) => { d.className = 'ZCL_DRAFT'; }));
+  let downloaded = false;
+  page.on('download', () => { downloaded = true; });
+  await page.keyboard.press('Control+s');
+  await expect(page.locator('#toast')).toContainText('ZCL_DRAFT kept as a draft in this browser');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('abap2ui5-designer:library')).map((r) => r.className))).toEqual(['ZCL_DRAFT']);
+  await page.locator('#toast .toast-action', { hasText: 'Drafts' }).click();
+  await expect(page.locator('#dlg')).toContainText('Drafts - kept in this browser');
+  expect(downloaded).toBe(false);
 });

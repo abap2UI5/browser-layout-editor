@@ -1,7 +1,7 @@
 // Browser tests of the editor's working aids: undo that keeps the
-// selection, quick fixes from the Checks, several controls at once, the
+// selection, quick fixes from the Problems, several controls at once, the
 // outline filter, the data tab's order and pasted rows, the defaults of
-// the canvas's UI5, the events of Preview mode, the designs of this browser.
+// the canvas's UI5, the events of Try mode, the designs of this browser.
 import { test, expect, waitRendered, abapOf } from './fixtures.mjs';
 
 const preview = (page) => page.frameLocator('#preview');
@@ -55,7 +55,7 @@ test('a check with a fix: one click creates the attribute a binding names', asyn
     const input = d.root.aggs.content[0].aggs.content.find((n) => n.type === 'form:SimpleForm').aggs.content.find((n) => n.type === 'Input');
     input.props.value = { m: 'b', v: 'customer_city' };
   }));
-  await page.getByRole('tab', { name: 'Checks' }).click();
+  await page.getByRole('tab', { name: 'Problems' }).click();
   const line = page.locator('#issuesPanel .issue', { hasText: 'customer_city, which is not an attribute' });
   await expect(line).toBeVisible();
   // a click on the line shows the property it is about
@@ -67,12 +67,13 @@ test('a check with a fix: one click creates the attribute a binding names', asyn
   expect(await abapOf(page)).toMatch(/DATA customer_city +TYPE string\./);
 });
 
-test('an export with errors asks in the editor, and can show the checks instead', async ({ designer: page }) => {
+test('an export with errors asks in the editor, and can show the problems instead', async ({ designer: page }) => {
   await page.evaluate(() => window.designer.commit((d) => { d.className = '1BAD'; }));
+  await page.locator('#btnExport').click();
   await page.locator('#btnZip').click();
   const dlg = page.locator('#dlg');
   await expect(dlg).toContainText('the class may not activate');
-  await dlg.getByRole('button', { name: 'Show the checks' }).click();
+  await dlg.getByRole('button', { name: 'Show the problems' }).click();
   await expect(dlg).toBeHidden();
   await expect(page.locator('#panel-issues')).toBeVisible();
 });
@@ -173,7 +174,7 @@ test('attributes change their order, rows come pasted from a spreadsheet', async
   expect(at.rows).toEqual([{ TEXT: 'Anna', CITY: 'Berlin' }, { TEXT: 'Ben', CITY: 'Paris' }]);
 });
 
-test('Preview mode lists the events and what the user changed', async ({ designer: page }) => {
+test('Try mode lists the events and what the user changed', async ({ designer: page }) => {
   await page.locator('.ins-item[data-type="Button"]').click();
   await page.locator('#inspector .event input').first().fill('GO');
   await waitRendered(page);
@@ -315,16 +316,50 @@ test('a double-click on the canvas edits the text of a control there', async ({ 
   }, id)).toBe('Ship it');
 });
 
-test('the editor is light, dark or as the system, and keeps the choice', async ({ designer: page }) => {
+test('the editor is light, dark or as the system, and keeps the choice for every abap2UI5 tool', async ({ designer: page }) => {
   const theme = () => page.evaluate(() => document.documentElement.dataset.theme || '');
+  const btn = page.locator('#btnTheme');
   expect(await theme()).toBe('');
-  await page.locator('#btnTheme').click();
+  await expect(btn).toHaveText('◐');
+  await expect(btn).toHaveAttribute('title', 'Appearance: as the system - click for light');
+  await btn.click();
   expect(await theme()).toBe('light');
-  await page.locator('#btnTheme').click();
+  await expect(btn).toHaveText('☀');
+  await btn.click();
   expect(await theme()).toBe('dark');
+  await expect(btn).toHaveText('☾');
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(30, 32, 36)');
-  // kept with the preferences (a reload here would start from a cleared store)
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('abap2ui5-designer:prefs')).appearance)).toBe('dark');
+  // one key for the four tools, nothing in the editor's own preferences
+  expect(await page.evaluate(() => localStorage.getItem('abap2ui5:theme'))).toBe('dark');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('abap2ui5-designer:prefs') || '{}').appearance)).toBeUndefined();
+  await btn.click();
+  expect(await theme()).toBe('');
+  expect(await page.evaluate(() => localStorage.getItem('abap2ui5:theme'))).toBeNull();
+  // the switch is the last control of the bar, Full screen right before it
+  expect(await page.evaluate(() => [...document.querySelectorAll('.appbar .bar-actions > *')].slice(-2).map((e) => e.id))).toEqual(['btnFullscreen', 'btnTheme']);
+});
+
+test('another abap2UI5 tool\'s choice of appearance arrives here, and the old ones are carried over', async ({ page, context }) => {
+  // what the editor and the playground kept before the setting was shared
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.clear();
+    localStorage.setItem('abap2ui5-designer:prefs', JSON.stringify({ appearance: 'dark' }));
+    localStorage.setItem('abap2ui5-playground:theme', 'light');
+  });
+  await page.goto('/index.html');
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || '')).toBe('dark');
+  expect(await page.evaluate(() => localStorage.getItem('abap2ui5:theme'))).toBe('dark');
+  expect(await page.evaluate(() => localStorage.getItem('abap2ui5-playground:theme'))).toBeNull();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('abap2ui5-designer:prefs')).appearance)).toBeUndefined();
+  // the playground, in another tab of the same origin, switches to light
+  const other = await context.newPage();
+  await other.goto('/preview.html', { waitUntil: 'domcontentloaded' });
+  await other.evaluate(() => localStorage.setItem('abap2ui5:theme', 'light'));
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || '')).toBe('light');
+  await expect(page.locator('#btnTheme')).toHaveText('☀');
+  await other.close();
 });
 
 test('a wrap that cannot be done says why, never that it was done', async ({ designer: page }) => {
