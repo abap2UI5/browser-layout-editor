@@ -283,6 +283,14 @@ export function renderIssues() {
   badge.classList.toggle('hidden', !(errors || warns));
   badge.classList.toggle('warn', !errors);
   $('#btnZip').title = errors ? `${errors} problem(s) - the class may not activate. See Problems.` : "The class with its abapGit files - abapGit: New Offline, Import ZIP";
+  // the bar's status names them too - a click opens the list
+  const said = $('#statusProblems');
+  if (said) {
+    const n = errors || warns;
+    said.hidden = !n;
+    said.textContent = !n ? '' : errors ? `${errors} problem${errors === 1 ? '' : 's'}` : `${warns} warning${warns === 1 ? '' : 's'}`;
+    said.classList.toggle('warn', !errors);
+  }
   // the list itself only while the tab is open
   if (state.panel !== 'issues') return issues;
   const box = $('#issuesPanel');

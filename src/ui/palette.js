@@ -7,8 +7,14 @@ import { state, select, undo, redo, selectedIds } from './store.js';
 import { $, h, displayType, nodeLabel } from './dom.js';
 import { addControl, insertPattern, copySelection, pasteSelection, copyProperties, pasteProperties } from './edit.js';
 import { setView, copyText } from './code.js';
-import { exportZip, newDialog, importDialog, recentDialog, shareLink, insertByNameDialog, saveDesign, saveToBrowser, openFile } from './files.js';
-import { shortcutsDialog } from './keys.js';
+import { exportZip, newDialog, importDialog, recentDialog, shareLink, insertByNameDialog, saveDesign, saveToBrowser, openFile, openIn, openInVscode } from './files.js';
+import { helpDialog } from './keys.js';
+import { TOOLS, EXPORT_ENTRIES, APPEARANCES, APPEARANCE_NAME, KEYS } from '../family.js';
+import { setAppearance, toggleFullscreen } from './appearance.js';
+import { PANES, onPhone, showPane } from './phone.js';
+import { toXml } from '../xml.js';
+import { fileName } from '../abap.js';
+import { download } from './dom.js';
 import { WRAPPERS, deleteSelection, duplicateSelection, moveSelection, selectParent, wrapSelection } from './actions.js';
 
 
@@ -23,8 +29,17 @@ function commands() {
   });
   const action = (title, run, detail) => list.push({ kind: 'action', title, detail, run });
   action('Show design and code', () => setView('split'));
-  action('Download for abapGit (.zip)', exportZip);
-  action('Copy ABAP', () => copyText(generateClassSource(state.design), 'ABAP'));
+  // the Export menu, entry for entry (EXPORT_ENTRIES in src/family.js)
+  action(EXPORT_ENTRIES.zip, exportZip, 'Export');
+  action(EXPORT_ENTRIES.copyAbap, () => copyText(generateClassSource(state.design), 'ABAP'), 'Export');
+  action(EXPORT_ENTRIES.shareLink, shareLink, 'Export - the design in a URL');
+  for (const t of TOOLS.filter((x) => x.id !== 'layout')) action(`${EXPORT_ENTRIES.openIn} ${t.name}`, () => openIn(t.id), t.blurb);
+  action(`${EXPORT_ENTRIES.openIn} ${EXPORT_ENTRIES.vscode}`, openInVscode, 'the abap2UI5 extension takes the class');
+  action('Download ABAP (.clas.abap)', () => download(fileName(state.design.className, 'clas.abap'), generateClassSource(state.design), 'text/plain'), 'Export');
+  action('Copy XML view', () => copyText(toXml(state.design), 'XML'), 'Export');
+  for (const a of APPEARANCES) action(`Appearance: ${APPEARANCE_NAME[a]}`, () => setAppearance(a), 'the editor, and the canvas on Auto');
+  if (document.fullscreenEnabled) action('Full screen', toggleFullscreen, 'on and off');
+  if (onPhone()) for (const p of PANES) action(`Show ${p.name}`, () => showPane(p.id), 'the pane on screen');
   action('New from template', newDialog);
   action('Import UI5 XML view', importDialog);
   action('Save design (.json)', saveDesign);
@@ -32,11 +47,10 @@ function commands() {
   action('Open design, view or class', () => openFile('.json,.xml,.abap'));
   action('Drafts', recentDialog, 'kept in this browser, and recent');
   action('Insert any UI5 control by class name', insertByNameDialog, 'e.g. sap.m.Wizard');
-  action('Copy share link', shareLink, 'the design in a URL');
   action('Show design only', () => setView('canvas'));
   action('Show code only', () => setView('code'));
   action('Paste', pasteSelection, 'Ctrl+V');
-  action('Keyboard shortcuts', shortcutsDialog, '?');
+  action('Help', helpDialog, `${KEYS.help} - what the editor does, and its keyboard shortcuts`);
   action('Undo', undo, 'Ctrl+Z');
   action('Redo', redo, 'Ctrl+Shift+Z');
   if (sel && sel.parent) {

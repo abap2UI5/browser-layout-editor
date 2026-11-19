@@ -39,8 +39,15 @@
            tool that writes code -->
       <select id="abapRelease" aria-label="ABAP release" title="Your SAP system - the ABAP release the class is written for"></select>
     </div>
+    <!-- The status every abap2UI5 tool's bar carries in one place: right
+         after the tool's main controls, one muted line - what was last
+         done (everything a toast says lands here too) and the problems. -->
+    <div class="bar-status" id="barStatus">
+      <span id="statusText" role="status" aria-live="polite"></span>
+      <button id="statusProblems" class="link" hidden title="Open the problems"></button>
+    </div>
     <div class="bar-actions">
-      <button id="btnCmd" class="ghost cmd" title="Command palette (Ctrl+K)"><span>Search or insert…</span><kbd>Ctrl K</kbd></button>
+      <button id="btnCmd" class="ghost cmd" title="Command palette (Ctrl+K)" aria-label="Command palette"><svg class="cmd-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.4 10.4 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="cmd-text">Search or insert…</span><kbd>Ctrl K</kbd></button>
       <div class="menu-wrap">
         <button id="btnFile" class="ghost" aria-haspopup="menu" aria-expanded="false">File ▾</button>
         <div id="fileMenu" class="menu" role="menu" hidden>
@@ -51,6 +58,8 @@
           <button id="btnOpenClass" role="menuitem" title="An abap2UI5 app class - its view, data and events become the design, the rest of the class is kept">Open ABAP class…</button>
           <button id="btnImport" role="menuitem">Import UI5 XML view…</button>
           <button id="btnRecent" role="menuitem" title="The drafts kept in this browser, and the designs New, Open or Import replaced">Drafts…</button>
+          <hr class="menu-rule">
+          <button id="btnHelp" role="menuitem" title="What the editor does, and its keyboard shortcuts">Help <kbd>?</kbd></button>
         </div>
       </div>
       <!-- The Export menu every abap2UI5 tool carries: the entries of
@@ -76,7 +85,16 @@
     </div>
   </header>
 
-  <main class="workspace">
+  <!-- Below 820px one pane at a time, as the other abap2UI5 tools do on a
+       phone: the same pills as their Chat / App / Code. -->
+  <nav class="seg phone-tabs" id="phoneTabs" role="tablist" aria-label="Pane">
+    <button role="tab" data-pane="drawer" aria-selected="false">Controls</button>
+    <button role="tab" data-pane="canvas" aria-selected="true" class="active">Design</button>
+    <button role="tab" data-pane="code" aria-selected="false">Code</button>
+    <button role="tab" data-pane="inspector" aria-selected="false">Properties</button>
+  </nav>
+
+  <main class="workspace" id="workspace" data-pane="canvas">
     <aside class="drawer" id="drawer">
       <nav class="rail" role="tablist" aria-label="Panels">
         <button class="rail-btn active" data-panel="insert" role="tab" title="Controls and building blocks to drag onto the canvas">Controls</button>
@@ -128,13 +146,19 @@
           <option value="0.75">75%</option>
           <option value="0.5">50%</option>
         </select>
-        <select id="theme" aria-label="Theme">
+        <select id="theme" aria-label="Theme of the canvas" title="The UI5 theme of the canvas - Auto follows the editor's appearance">
+          <option value="auto">Auto (as the editor)</option>
           <option value="sap_horizon">Horizon</option>
+          <option value="sap_horizon_dark">Horizon Dark</option>
           <option value="sap_fiori_3">Quartz Light</option>
           <option value="sap_fiori_3_dark">Quartz Dark</option>
           <option value="sap_belize">Belize</option>
         </select>
-        <input id="ui5version" placeholder="UI5 latest" title="UI5 of the preview: a version, e.g. 1.71.80, or the URL of a UI5 of your own (the folder with resources/) - empty: the latest from the OpenUI5 CDN" size="9" spellcheck="false">
+        <label class="ui5-label" for="ui5version">UI5 preview</label>
+        <!-- the releases are UI5_RELEASES of src/family.js, the playground's
+             UI5 check offers the same ones; filled by src/ui/ui5field.js -->
+        <input id="ui5version" list="ui5versions" placeholder="latest" title="UI5 of the preview: a version, e.g. 1.71.80, or the URL of a UI5 of your own (the folder with resources/) - empty: the latest from the OpenUI5 CDN" size="9" spellcheck="false" autocomplete="off">
+        <datalist id="ui5versions"></datalist>
       </div>
       <div class="stage-body view-split" id="stageBody">
         <div class="canvas-pane" id="canvasPane">
@@ -143,6 +167,8 @@
             <iframe id="preview" title="Preview"></iframe>
           </div>
           <div id="eventLog" class="event-log hidden" aria-live="polite" aria-label="Events of the preview"></div>
+          <!-- the first visit's hint strip (src/ui/first-steps.js) -->
+          <div id="firstSteps" class="first-steps-anchor" hidden></div>
         </div>
         <div class="code-pane" id="codePane">
           <div class="code-head">

@@ -29,10 +29,21 @@ export function options(values, selected, labels = {}) {
 
 let toastTimer = null;
 
+// The bar's status line (index.html, #statusText): what was last done, in
+// one muted line - the place every abap2UI5 tool says it. A toast is the
+// transient echo of it: everything a toast says lands here too.
+export function setStatus(text) {
+  const el = document.getElementById('statusText');
+  if (!el) return;
+  el.textContent = text || '';
+  el.title = text || '';
+}
+
 // `action`: { label, run } - a button in the toast, which then stays
 // longer
 export function toast(text, action) {
   const t = $('#toast');
+  setStatus(text);
   t.replaceChildren(text);
   t.classList.remove('error');
   t.setAttribute('role', 'status');
@@ -46,6 +57,7 @@ export function toast(text, action) {
 // replaced by the next message
 export function toastError(text) {
   const t = $('#toast');
+  setStatus(text);
   t.replaceChildren(h('span', { text }), h('button', { class: 'toast-close', 'aria-label': 'Close', title: 'Close', onclick: () => t.classList.remove('show') }, '✕'));
   t.classList.add('show', 'error');
   t.setAttribute('role', 'alert');

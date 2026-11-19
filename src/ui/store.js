@@ -7,7 +7,7 @@
 import { findNode, normalizeDesign } from '../model.js';
 import { STARTERS } from '../starters.js';
 import { toBase64Url } from '../handoff.js';
-import { $, displayType, toastError } from './dom.js';
+import { $, displayType, toastError, setStatus } from './dom.js';
 import { withStoredRelease } from './release.js';
 
 const listeners = { change: [], select: [], panel: [] };
@@ -48,7 +48,7 @@ export const state = {
   inspector: { filter: '', onlySet: false },
   previewReady: false,
   rev: 0, // bumped on every change of the design - a cheap cache key
-  prefs: { device: '100%', theme: 'sap_horizon', ui5: '', view: 'split' },
+  prefs: { device: '100%', theme: 'auto', ui5: '', view: 'split' },
 };
 
 const TRUSTED_UI5_HOSTS = ['localhost', '127.0.0.1', '[::1]', 'sdk.openui5.org', 'ui5.sap.com', 'openui5.hana.ondemand.com', 'sapui5.hana.ondemand.com'];
@@ -74,6 +74,15 @@ export const isUi5Url = (v) => /^(https?:\/\/|\.{0,2}\/)[^"'<>\s]*$/.test(v);
 
 export function loadPrefs() {
   try { Object.assign(state.prefs, JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')); } catch { /* defaults */ }
+  // The canvas theme follows the editor's appearance ('auto') since there
+  // is a choice: Horizon was the default before, and prefs are written
+  // whole on any change (a width, the zoom), so a stored 'sap_horizon' is
+  // nearly always that default rather than a choice - it becomes 'auto'
+  // once. Any other stored theme was picked and stays.
+  if (!state.prefs.themeAuto) {
+    if (state.prefs.theme === 'sap_horizon') state.prefs.theme = 'auto';
+    state.prefs.themeAuto = 1;
+  }
   // ?ui5=<version|local> overrides the stored version, for links and tests
   // - but a UI5 on a host of its own only when the user typed it into
   // the UI5 field: its scripts run on this origin, a link is anybody's
@@ -142,6 +151,7 @@ export function flushPersist() {
   try {
     localStorage.setItem(STORE_KEY, snapshot());
     storeFailed = false;
+    setStatus('saved in this browser');
   } catch {
     // quota or private mode: said once, not on every keystroke
     if (!storeFailed) toastError('This browser does not keep the design (its storage is full or off) - save it as a file to keep it.');

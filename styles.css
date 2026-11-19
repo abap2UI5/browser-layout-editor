@@ -352,6 +352,7 @@ table.rows .nested-rows { margin: 2px 0 2px 12px; border-left: 2px solid var(--l
   .stage { min-height: 640px; }
   button.cmd span { display: none; }
   button.cmd { min-width: 0; }
+  .cmd-icon { display: block; }
 }
 
 /* several controls selected */
@@ -508,4 +509,96 @@ button.icon { width: 32px; height: 32px; padding: 0; border-radius: 10px; }
 @media (max-width: 1280px) {
   .rail { padding: 0 6px; gap: 0; }
   .rail-btn { padding-left: 6px; padding-right: 6px; }
+}
+
+/* ------------------------------------------------ the status, as in every tool
+   One muted line right after the tool's main controls: what was last done,
+   and the problems as a link to their list. It gives way with an ellipsis
+   rather than wrapping the bar. */
+.appbar .classfield { flex: 0 1 auto; min-width: 0; }
+.appbar .classfield #description { flex: 1 1 150px; width: 150px; min-width: 90px; }
+.bar-status { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+#statusText { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.appbar .bar-status button.link { height: auto; padding: 0 2px; font-size: 12px; font-weight: 600; color: var(--accent-text); flex: none; }
+.appbar .bar-status button.link.warn { color: var(--muted); }
+.appbar .bar-status button.link[hidden] { display: none; }
+.cmd-icon { display: none; }
+
+/* the UI5 of the canvas, labelled as the class field is */
+.ui5-label { color: var(--muted); font-weight: 600; margin-right: -4px; }
+
+/* ------------------------------------------------ the help (?)
+   The shape of every abap2UI5 tool's help: what the tool does, then the keys. */
+.help p { margin: 0 0 8px; line-height: 1.5; max-width: 60ch; }
+.help .dlg-sub:first-child { margin-top: 0; }
+.help table.keys { margin-top: 4px; }
+
+/* ------------------------------------------------ first steps
+   The playground's first-steps strip: one line over the bottom of the
+   canvas, drawn upwards from a zero-height anchor so it never moves the view. */
+.first-steps-anchor { position: absolute; left: 0; right: 0; bottom: 0; height: 0; z-index: 6; container-type: inline-size; }
+.first-steps-anchor[hidden] { display: none; }
+.first-steps {
+  position: absolute; left: .5rem; right: .5rem; bottom: .5rem;
+  display: flex; align-items: center; gap: .5rem; padding: .25rem .25rem .25rem .7rem;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--panel); color: var(--text); box-shadow: 0 2px 10px rgba(0, 0, 0, .15); font-size: 13px;
+}
+.first-steps-lead { flex: none; font-weight: 600; }
+.first-steps-list { display: flex; gap: .3rem; flex: 1; min-width: 0; overflow-x: auto; margin: 0; padding: 0; list-style: none; scrollbar-width: none; }
+.first-steps-list li { flex: none; }
+.first-steps-list button { padding: .15rem .55rem; white-space: nowrap; border-radius: var(--pill); }
+.first-steps .is-short { display: none; }
+.first-steps-close { flex: none; padding: .2rem .45rem; border: 0; background: none; color: var(--muted); }
+@container (max-width: 640px) {
+  .first-steps .is-long { display: none; }
+  .first-steps .is-short { display: inline; }
+}
+@container (max-width: 420px) {
+  .first-steps { font-size: 12px; gap: .3rem; padding-left: .4rem; }
+  .first-steps-lead { display: none; }
+}
+.is-pointed { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+/* ------------------------------------------------ the phone
+   Below 820px one pane at a time behind the pills, as in the other tools;
+   the bar keeps the mark without the word, and the palette is an icon. */
+.phone-tabs { display: none; }
+@media (max-width: 820px) {
+  .brand .word { display: none; }
+  .appbar { gap: 8px; padding: 8px 10px; }
+  .appbar button.cmd { min-width: 0; width: var(--bar-h); padding: 0; border-radius: var(--pill); }
+  .cmd-text, .appbar button.cmd kbd { display: none; }
+  .cmd-icon { display: block; }
+  .classfield { min-width: 0; flex: 1 1 100%; order: 3; }
+  .classfield #className { width: auto; flex: 1; min-width: 0; }
+  .classfield #description { display: none; }
+  .bar-status { display: none; }
+  .bar-actions { margin-left: auto; }
+  body { height: 100%; }
+  .stage { min-height: 0; }
+  /* a phone is the device, and the canvas follows the editor: the bar over
+     the canvas keeps Edit / Try and the theme */
+  .stage-bar #device, .stage-bar #zoom, .stage-bar .ui5-label, .stage-bar #ui5version, .stage-bar .spacer { display: none; }
+  .appbar #btnFullscreen { display: none; }
+  .phone-tabs { display: flex; margin: 0 10px 10px; align-self: stretch; }
+  .phone-tabs button { flex: 1; padding: 6px 4px; }
+  .workspace { display: block; padding: 0 10px 10px; flex: 1; min-height: 0; overflow: hidden; }
+  .workspace > .resizer { display: none; }
+  .workspace > .drawer, .workspace > .inspector, .workspace > .stage { display: none; height: 100%; }
+  .workspace[data-pane="drawer"] > .drawer,
+  .workspace[data-pane="inspector"] > .inspector { display: flex; flex-direction: column; }
+  .workspace[data-pane="inspector"] > .inspector { display: block; overflow: auto; }
+  .workspace[data-pane="canvas"] > .stage,
+  .workspace[data-pane="code"] > .stage { display: flex; }
+  /* the pane chooses design or code - the Design / Split / Code switch is
+     the desk's */
+  .stage-bar .seg[aria-label="Editor"] { display: none; }
+  .workspace[data-pane] .stage-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .workspace[data-pane="canvas"] .stage-body .canvas-pane { display: flex; }
+  .workspace[data-pane="canvas"] .stage-body .code-pane { display: none; }
+  .workspace[data-pane="code"] .stage-body .code-pane { display: flex; border-left: 1px solid var(--line); }
+  .workspace[data-pane="code"] .stage-body .canvas-pane,
+  .workspace[data-pane="code"] .stage-bar,
+  .workspace[data-pane="code"] .crumbs { display: none; }
 }

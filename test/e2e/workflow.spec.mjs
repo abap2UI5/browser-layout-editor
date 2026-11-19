@@ -410,9 +410,10 @@ test('the canvas zooms out, and a double-click still edits the control under the
   await expect(page.locator('#preview')).not.toHaveCSS('zoom', '0.5');
 });
 
-test('? lists the keyboard shortcuts', async ({ designer: page }) => {
+test('? opens the help, with the keyboard shortcuts', async ({ designer: page }) => {
   await page.locator('#crumbs').click();
   await page.keyboard.press('?');
+  await expect(page.locator('#dlg header')).toHaveText('Layout Editor - help');
   await expect(page.locator('#dlg')).toContainText('Keyboard shortcuts');
   await expect(page.locator('#dlg table.keys')).toContainText('Ctrl+K');
   await page.keyboard.press('Escape');

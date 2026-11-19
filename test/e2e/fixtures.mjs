@@ -4,7 +4,14 @@ import { test as base, expect } from '@playwright/test';
 export const test = base.extend({
   ui5: ['', { option: true }],
   designer: async ({ page, ui5 }, use) => {
-    await page.addInitScript(() => { try { localStorage.clear(); } catch { /* fresh context */ } });
+    // a fresh browser, but past the first visit: the first-steps strip lies
+    // over the canvas's bottom edge (test/e2e/tools.spec.mjs tests it)
+    // (the editor's page only: the canvas frame shares its storage, and a
+    // canvas that loads again must not wipe what the editor stored since)
+    await page.addInitScript(() => {
+      if (window.top !== window) return;
+      try { localStorage.clear(); localStorage.setItem('abap2ui5-designer:first-steps', 'closed'); } catch { /* fresh context */ }
+    });
     await page.goto(`/index.html?ui5=${encodeURIComponent(ui5)}`);
     await waitRendered(page);
     await use(page);
