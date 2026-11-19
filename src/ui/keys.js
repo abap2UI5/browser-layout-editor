@@ -2,7 +2,7 @@
 import { state, select, undo, redo, selectedIds } from './store.js';
 import { openPalette } from './palette.js';
 import { copySelection, pasteSelection } from './edit.js';
-import { saveDesign } from './files.js';
+import { saveToBrowser } from './files.js';
 import { deleteSelection, duplicateSelection, moveSelection, selectParent } from './actions.js';
 import { openContextMenuAtSelection } from './context.js';
 import { h, dialog } from './dom.js';
@@ -11,7 +11,7 @@ import { h, dialog } from './dom.js';
 export const SHORTCUTS = [
   ['Ctrl+K', 'Command palette: insert, jump to or run anything'],
   ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / redo'],
-  ['Ctrl+S', 'Save the design as a file'],
+  ['Ctrl+S', 'Save as draft - keep the design in this browser (File, Drafts… lists them)'],
   ['Delete', 'Delete the selection'],
   ['Ctrl+D', 'Duplicate the selection'],
   ['Ctrl+C / Ctrl+X / Ctrl+V', 'Copy, cut, paste the selection'],
@@ -40,8 +40,9 @@ export function onKey(e) {
   const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
   const ctrl = e.ctrlKey || e.metaKey;
   if (ctrl && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openPalette(); return; }
-  // the design, not the editor's page
-  if (ctrl && (e.key === 's' || e.key === 'S')) { e.preventDefault(); saveDesign(); return; }
+  // a draft in this browser, as in every abap2UI5 tool - never a download,
+  // never the browser's "Save page as"
+  if (ctrl && (e.key === 's' || e.key === 'S')) { e.preventDefault(); saveToBrowser(); return; }
   if (ctrl && !typing && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
   if (ctrl && !typing && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); redo(); return; }
   if (typing) return;

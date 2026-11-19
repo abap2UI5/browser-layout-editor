@@ -1,5 +1,5 @@
 // The Data panel: the attributes of the class with their sample values,
-// and the Checks panel.
+// and the Problems panel.
 import {
   walk, findNode, rowContext, attributeUsage, renameAttribute, validate, checkAttributeName, checkFieldName, ATTRIBUTE_TYPES,
   moveItem, parseSampleRows, bindListToTable,
@@ -66,7 +66,7 @@ function attrCard(a, idx) {
     title: uses ? `Delete - ${uses} binding(s) use it` : 'Delete',
     'aria-label': 'Delete attribute',
     onclick: async () => {
-      if (uses && !await choose(`Delete ${a.name}?`, `${a.name} is bound ${uses} time(s). The bindings stay and show up under Checks.`, [
+      if (uses && !await choose(`Delete ${a.name}?`, `${a.name} is bound ${uses} time(s). The bindings stay and show up under Problems.`, [
         { text: 'Cancel', value: false }, { text: 'Delete', value: true, primary: true },
       ])) return;
       commit((dd) => { dd.attributes.splice(idx, 1); });
@@ -236,7 +236,7 @@ function scalarInput(type, value, onValue, focusKey) {
 }
 
 
-// A quick fix from the Checks: what validate( ) proposes, done
+// A quick fix from the Problems: what validate( ) proposes, done
 function applyFix(fix) {
   if (fix.kind === 'createAttribute') {
     commit((d) => {
@@ -282,7 +282,7 @@ export function renderIssues() {
   badge.textContent = String(errors || warns);
   badge.classList.toggle('hidden', !(errors || warns));
   badge.classList.toggle('warn', !errors);
-  $('#btnZip').title = errors ? `${errors} problem(s) - the class may not activate. See Checks.` : "The class with its abapGit files - abapGit: New Offline, Import ZIP";
+  $('#btnZip').title = errors ? `${errors} problem(s) - the class may not activate. See Problems.` : "The class with its abapGit files - abapGit: New Offline, Import ZIP";
   // the list itself only while the tab is open
   if (state.panel !== 'issues') return issues;
   const box = $('#issuesPanel');

@@ -85,21 +85,47 @@ The product is the generated class. It must:
 ## One of four tools
 
 The Playground, the AI App Builder and the AI Agent (abap2UI5/browser-playground)
-and this editor wear one look: the bar on a sunken page with the mark,
-"abap2UI5" and the tool's name in the accent, the work on white cards
-(18px radius, hairline, soft shadow, 14px apart), pills for everything that
-is pressed, Inter (`fonts/`, self-hosted). The tool's name is the menu of
-all four tools; its list in `index.html` is the playground's `TOOLS`
-(`src/shell/tool-switch.mjs` there) - change the two together. The palette
-in `styles.css` is a copy of the playground's `shell.css`, kept equal by
-hand. The canvas keeps the UI5 theme chosen for it.
+and this editor wear one look and are used the same way: the bar on a
+sunken page with the mark, "abap2UI5" and the tool's name in the accent,
+the work on white cards (18px radius, hairline, soft shadow, 14px apart),
+pills for everything that is pressed, Inter (`fonts/`, self-hosted).
+
+- **`src/family.js` is the playground's `src/shell/family.mjs`, byte for
+  byte** - the four tools (`TOOLS`), the shared storage keys, the ABAP
+  releases, the words and the Export menu's labels. Never edit it here:
+  change it in the playground and copy it over. `test/family.test.mjs`
+  compares the two, and the palette of `styles.css` with the playground's
+  `shell.css` (`PALETTE` in the test says which token is which), from
+  `PLAYGROUND_DIR` or the playground's `main` on GitHub; it skips, and says
+  why, when neither can be read.
+- The bar's order: brand, the tool's name (the menu of all four, filled
+  from `TOOLS` by `src/ui/tools.js`), undo and redo; at the right end
+  *Export ▾*, ⛶ (full screen) and the appearance switch, the last control.
+- One word for one thing (`WORDS`): *Design | Split | Code* and *Edit |
+  Try* on the stage, *Problems* in the drawer, *Drafts* for the copies kept
+  in this browser.
+- The appearance (◐ as the system, ☀, ☾) is ONE setting for all four tools,
+  under `THEME_KEY` in localStorage (`src/ui/appearance.js`), never in the
+  editor's preferences; a change in another tab arrives as a `storage`
+  event.
+- The release select has `RELEASES`' four entries, remembered under
+  `RELEASE_KEY` for every tool (`src/ui/release.js`); `v702` writes the
+  7.02 class, the others the 7.40+ class. A design opened from a file or a
+  link keeps its own release and does not change the remembered one.
+- The Export menu has `EXPORT_ENTRIES` in their order, then the editor's
+  own. *Open in* hands the class to the other three tools in the
+  playground's share fragment (`src/handoff.js`), at `toolUrl( )` against
+  the playground's address.
+- Ctrl+S keeps a draft in this browser, as in every tool - never a download.
+
+The canvas keeps the UI5 theme chosen for it.
 
 ## Commands
 
 | Command | What |
 |---|---|
 | `npm run serve` | The designer on http://127.0.0.1:8080/ |
-| `npm test` | Unit tests (catalogue vs. 1.71, class format, chain vs. builder model, import, the vendored chain writer) |
+| `npm test` | Unit tests (catalogue vs. 1.71, class format, chain vs. builder model, import, the vendored chain writer, `family.js` and the palette vs. the playground - `PLAYGROUND_DIR=<checkout>` to compare with a local one) |
 | `npm run check:abap` | abap2UI5 linter over the generated classes |
 | `npm run check:abap702` | abaplint at v702 over the generated 7.02 classes (also part of `npm test`) |
 | `npm run verify:abap` | Transpile and run the generated classes on abap2UI5 |

@@ -6,6 +6,8 @@ import { copyText } from './code.js';
 import { fileName } from '../abap.js';
 import { fromClass, classReport, classFiles, generateClassSource, sourceUrl, repoClassUrl } from '../clas.js';
 import { playgroundLink, vscodeLink, filesFromPlaygroundFragment, PLAYGROUND_URL } from '../handoff.js';
+import { TOOLS, WORDS, toolUrl } from '../family.js';
+import { withStoredRelease } from './release.js';
 import { zip } from '../zip.js';
 import { state, commit, replaceDesign, showPanel, recentDesigns, designToLink, libraryDesigns, saveToLibrary, removeFromLibrary } from './store.js';
 import { $, h, toast, toastError, download, dialog, choose } from './dom.js';
@@ -16,12 +18,13 @@ export function newDialog() {
     h('p', { class: 'hint', text: 'The current design is replaced - Undo brings it back.' }),
     h('div', { class: 'starters' }, STARTERS.map((s) => h('button', {
       class: 'starter',
-      onclick: () => { replaceDesign(s.make()); $('#dlg').close(); toast(`New: ${s.title}`); },
+      onclick: () => { replaceDesign(withStoredRelease(s.make())); $('#dlg').close(); toast(`New: ${s.title}`); },
     }, h('b', { text: s.title }), h('span', { text: s.text }))))), [{ text: 'Cancel', action: () => true }]);
 }
 
-// The designs of this browser: those saved under their class name, and
-// those New, Open, Import or a link replaced - back with one click
+// The drafts: the designs kept in this browser under their class name (Save
+// as draft, Ctrl+S), and those New, Open, Import or a link replaced - back
+// with one click. The playground calls its named copies drafts too.
 export function recentDialog() {
   const when = (t) => new Date(t).toLocaleString();
   const open = (r, what) => {
@@ -35,7 +38,7 @@ export function recentDialog() {
         h('b', { text: r.className }), h('span', { text: r.description || ' ' }), h('span', { class: 'muted', text: when(r.at) })),
       extra || null);
     return h('div', {},
-      h('h3', { class: 'dlg-sub', text: 'Saved in this browser' }),
+      h('h3', { class: 'dlg-sub', text: 'Drafts - kept in this browser' }),
       saved.length
         ? h('div', { class: 'starters' }, saved.map((r) => card(r, 'Opened', h('button', {
           class: 'icon danger remove', title: `Remove ${r.className} from this browser`, 'aria-label': `Remove ${r.className}`,
@@ -47,21 +50,21 @@ export function recentDialog() {
             recentDialog();
           },
         }, '✕'))))
-        : h('p', { class: 'hint', text: 'Nothing yet - File, Save in browser keeps the open design here under its class name.' }),
+        : h('p', { class: 'hint', text: 'Nothing yet - Save as draft (File, or Ctrl+S) keeps the open design here under its class name.' }),
       h('h3', { class: 'dlg-sub', text: 'Recent - replaced by New, Open, Import or a link' }),
       recent.length
         ? h('div', { class: 'starters' }, recent.map((r) => card(r, 'Back to')))
         : h('p', { class: 'hint', text: 'Nothing yet - a design lands here when New, Open, Import or a shared link replaces it.' }));
   };
-  dialog('Designs in this browser', render(), [{ text: 'Close', action: () => true }]);
+  dialog(WORDS.drafts, render(), [{ text: 'Close', action: () => true }]);
 }
 
 export function saveToBrowser() {
   try {
     const had = saveToLibrary(state.design);
-    toast(`${state.design.className} ${had ? 'updated' : 'saved'} in this browser`, { label: 'Show all', run: recentDialog });
+    toast(`${state.design.className} ${had ? 'updated' : 'kept'} as a draft in this browser`, { label: `${WORDS.drafts}…`, run: recentDialog });
   } catch (err) {
-    toastError(`Not saved in this browser: ${err.message}`);
+    toastError(`Not kept as a draft: ${err.message}`);
   }
 }
 
@@ -284,14 +287,21 @@ export function playgroundBase() {
   return state.prefs.playground || PLAYGROUND_URL;
 }
 
-export async function openInPlayground() {
+// The class in another of the abap2UI5 tools, in a new tab: the
+// playground, the AI App Builder (ai/) or the AI Agent (pilot/) - all three
+// read the playground's share fragment. Where the playground is set by
+// ?playground=, the other two are looked for beside it.
+export async function openIn(id) {
+  const tool = TOOLS.find((t) => t.id === id);
   try {
     const f = classFile();
-    window.open(await playgroundLink(f.name, f.source, playgroundBase()), '_blank', 'noopener');
+    window.open(await playgroundLink(f.name, f.source, toolUrl(id, playgroundBase())), '_blank', 'noopener');
   } catch (err) {
-    toastError(`No playground link: ${err.message}`);
+    toastError(`No link to the ${tool ? tool.name : id}: ${err.message}`);
   }
 }
+
+export const openInPlayground = () => openIn('playground');
 
 export async function openInVscode() {
   try {
@@ -344,9 +354,9 @@ export async function exportZip() {
   if (errors.length) {
     const go = await choose(`${errors.length} problem(s) - the class may not activate`, [
       h('ul', {}, errors.slice(0, 5).map((e) => h('li', { text: e.text }))),
-      errors.length > 5 ? `… and ${errors.length - 5} more under Checks.` : '',
+      errors.length > 5 ? `… and ${errors.length - 5} more under ${WORDS.problems}.` : '',
     ].filter(Boolean), [
-      { text: 'Show the checks', value: 'checks' },
+      { text: `Show the ${WORDS.problems.toLowerCase()}`, value: 'checks' },
       { text: 'Export anyway', value: 'export', primary: true },
     ]);
     if (go === 'checks') showPanel('issues');

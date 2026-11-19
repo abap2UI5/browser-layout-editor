@@ -11,10 +11,12 @@
 <body>
   <header class="appbar">
     <!-- The bar every abap2UI5 tool wears (the Playground, the AI App Builder
-         and the AI Agent in abap2UI5/browser-playground): the mark and "abap2UI5" go
-         home, the tool's name in the accent is the menu of all four tools.
-         The list is the playground's TOOLS (src/shell/tool-switch.mjs over
-         there); change the two together. -->
+         and the AI Agent in abap2UI5/browser-playground), in the same order:
+         the mark and "abap2UI5" go home, the tool's name in the accent is the
+         menu of all four tools (filled from TOOLS in src/family.js, the
+         playground's src/shell/family.mjs byte for byte), undo and redo
+         beside it; at the right end Export, Full screen and the appearance
+         switch, the last control of the bar. -->
     <div class="brand-row">
       <a class="brand" href="https://abap2ui5.github.io/" title="To abap2UI5's home page">
         <img class="mark" src="logo.png" alt="" width="20" height="20">
@@ -22,23 +24,20 @@
       </a>
       <div class="menu-wrap tool-switch">
         <button id="btnTools" class="tool-switch-name" aria-haspopup="menu" aria-expanded="false" title="The abap2UI5 tools - switch to another one">Layout Editor</button>
-        <nav id="toolMenu" class="menu tool-menu" aria-label="abap2UI5 tools" hidden>
-          <span class="tool-menu-head">abap2UI5 tools</span>
-          <a href="https://abap2ui5.github.io/browser-playground/"><b>Playground</b><span>Write ABAP in the browser and watch the app run beside it.</span></a>
-          <a href="./" aria-current="page"><b>Layout Editor</b><span>Design a UI5 view by drag and drop, then export it as an ABAP class.</span></a>
-          <a href="https://abap2ui5.github.io/browser-playground/ai/"><b>AI App Builder</b><span>Describe the app you need. The AI writes it; you download it for abapGit.</span></a>
-          <a href="https://abap2ui5.github.io/browser-playground/pilot/"><b>AI Agent</b><span>Let the AI operate a running app. Describe the task and watch it work.</span></a>
-        </nav>
+        <nav id="toolMenu" class="menu tool-menu" aria-label="abap2UI5 tools" hidden></nav>
+      </div>
+      <div class="history">
+        <button id="btnUndo" class="ghost icon" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+        <button id="btnRedo" class="ghost icon" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
       </div>
     </div>
     <div class="classfield">
       <label for="className">Class</label>
       <input id="className" spellcheck="false" autocomplete="off" maxlength="30">
       <input id="description" placeholder="Description" maxlength="60" autocomplete="off" aria-label="Description">
-      <select id="abapRelease" aria-label="ABAP release" title="The ABAP release the class is written for">
-        <option value="">ABAP 7.40+</option>
-        <option value="702">ABAP 7.02</option>
-      </select>
+      <!-- the options are RELEASES of src/family.js, the same four in every
+           tool that writes code -->
+      <select id="abapRelease" aria-label="ABAP release" title="Your SAP system - the ABAP release the class is written for"></select>
     </div>
     <div class="bar-actions">
       <button id="btnCmd" class="ghost cmd" title="Command palette (Ctrl+K)"><span>Search or insert…</span><kbd>Ctrl K</kbd></button>
@@ -47,29 +46,33 @@
         <div id="fileMenu" class="menu" role="menu" hidden>
           <button id="btnNew" role="menuitem">New from template…</button>
           <button id="btnOpen" role="menuitem">Open design (.json)…</button>
-          <button id="btnSave" role="menuitem" title="Ctrl+S">Save design (.json)</button>
-          <button id="btnSaveBrowser" role="menuitem" title="Keep the design in this browser, under its class name">Save in browser</button>
+          <button id="btnSave" role="menuitem">Save design (.json)</button>
+          <button id="btnSaveBrowser" role="menuitem" title="Keep the design in this browser, under its class name (Ctrl+S)">Save as draft <kbd>Ctrl S</kbd></button>
           <button id="btnOpenClass" role="menuitem" title="An abap2UI5 app class - its view, data and events become the design, the rest of the class is kept">Open ABAP class…</button>
           <button id="btnImport" role="menuitem">Import UI5 XML view…</button>
-          <button id="btnRecent" role="menuitem" title="The designs saved in this browser, and those New, Open or Import replaced">Designs in this browser…</button>
+          <button id="btnRecent" role="menuitem" title="The drafts kept in this browser, and the designs New, Open or Import replaced">Drafts…</button>
         </div>
       </div>
-      <button id="btnTheme" class="ghost icon" title="Appearance of the editor: as the system" aria-label="Appearance of the editor">◐</button>
-      <button id="btnUndo" class="ghost icon" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
-      <button id="btnRedo" class="ghost icon" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
-      <div class="menu-wrap split">
-        <button id="btnZip" class="primary" title="The class with its abapGit files - abapGit: New Offline, Import ZIP">Export</button>
-        <button id="btnExport" class="primary caret" aria-haspopup="menu" aria-expanded="false" aria-label="More export options">▾</button>
+      <!-- The Export menu every abap2UI5 tool carries: the entries of
+           EXPORT_ENTRIES in src/family.js, in that order, then the editor's
+           own. The "Open in" list is filled from TOOLS. -->
+      <div class="menu-wrap">
+        <button id="btnExport" class="ghost" aria-haspopup="menu" aria-expanded="false" title="The class out of the editor: abapGit, the clipboard, a link, another tool">Export ▾</button>
         <div id="exportMenu" class="menu right" role="menu" hidden>
-          <button id="btnZip2" role="menuitem">abapGit ZIP (.zip)</button>
-          <button id="btnDownloadAbap" role="menuitem">ABAP source (.clas.abap)</button>
-          <button id="btnCopy" role="menuitem">Copy ABAP to clipboard</button>
-          <button id="btnCopyXml" role="menuitem">Copy XML view</button>
+          <button id="btnZip" role="menuitem" title="The class with its abapGit files - abapGit: New Offline, Import ZIP">Download for abapGit (.zip)</button>
+          <button id="btnCopy" role="menuitem">Copy ABAP</button>
           <button id="btnShare" role="menuitem" title="A link that carries the design">Copy share link</button>
-          <button id="btnPlayground" role="menuitem" title="Run the class in the browser playground - no system">Open in Playground</button>
-          <button id="btnVscode" role="menuitem" title="Open the class in VS Code with the abap2UI5 extension">Open in VS Code</button>
+          <hr class="menu-rule">
+          <span class="menu-head" id="openInHead">Open in</span>
+          <div id="openInList" class="menu-group" role="group" aria-labelledby="openInHead"></div>
+          <button id="btnVscode" role="menuitem" title="Open the class in VS Code with the abap2UI5 extension">VS Code</button>
+          <hr class="menu-rule">
+          <button id="btnDownloadAbap" role="menuitem">Download ABAP (.clas.abap)</button>
+          <button id="btnCopyXml" role="menuitem">Copy XML view</button>
         </div>
       </div>
+      <button id="btnFullscreen" class="ghost icon" title="Full screen" aria-label="Full screen" aria-pressed="false">⛶</button>
+      <button id="btnTheme" class="ghost icon" title="Appearance" aria-label="Appearance">◐</button>
     </div>
   </header>
 
@@ -79,7 +82,7 @@
         <button class="rail-btn active" data-panel="insert" role="tab" title="Controls and building blocks to drag onto the canvas">Controls</button>
         <button class="rail-btn" data-panel="layers" role="tab" title="The structure of the view">Outline</button>
         <button class="rail-btn" data-panel="data" role="tab" title="Attributes and tables of the class">Data</button>
-        <button class="rail-btn" data-panel="issues" role="tab" title="What would break the class or the view">Checks <span id="issueCount" class="dot hidden"></span></button>
+        <button class="rail-btn" data-panel="issues" role="tab" title="What would break the class or the view">Problems <span id="issueCount" class="dot hidden"></span></button>
       </nav>
       <section class="panel" id="panel-insert" role="tabpanel">
         <div class="panel-head">
@@ -106,13 +109,13 @@
     <section class="stage">
       <div class="stage-bar">
         <div class="seg" role="group" aria-label="Editor">
-          <button data-view="canvas" title="The layout only">Layout</button>
-          <button data-view="split" class="active" title="The layout and the class side by side">Split</button>
+          <button data-view="canvas" title="The design only">Design</button>
+          <button data-view="split" class="active" title="The design and the class side by side">Split</button>
           <button data-view="code" title="The class only">Code</button>
         </div>
         <div class="seg" role="group" aria-label="Mode">
           <button data-mode="design" class="active" title="A click selects, a drag drops">Edit</button>
-          <button data-mode="interact" title="Use the view as a user would">Preview</button>
+          <button data-mode="interact" title="Use the view as a user would">Try</button>
         </div>
         <span class="spacer"></span>
         <div class="seg" role="group" aria-label="Device" id="device">

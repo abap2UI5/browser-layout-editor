@@ -357,7 +357,7 @@ function newAttrFor(node, p, def) {
   toast('Attribute created on the Data tab');
 }
 
-// a property brought into view and focused - from a line of the Checks:
+// a property brought into view and focused - from a line of the Problems:
 // the filter that would hide it is cleared, its group opened
 export function focusProp(p) {
   if (state.inspector.filter || state.inspector.onlySet) {
