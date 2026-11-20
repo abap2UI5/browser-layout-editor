@@ -200,7 +200,7 @@ Also in the editor:
 ## What the generated class needs
 
 - An abap2UI5 release that ships `z2ui5_cl_ui5_view_builder`. The class is
-  verified against **abap2UI5 1.149.0**.
+  verified against **abap2UI5 1.150.0**.
 - ABAP 7.40 or later, or ABAP Cloud. The class uses inline declarations and
   `VALUE #( )`, like every abap2UI5 sample. For an older system, choose
   **ABAP 7.02 - 7.31** next to the class name (the same four releases as
