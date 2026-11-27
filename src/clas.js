@@ -22,7 +22,8 @@
 // What the editor cannot represent is never dropped silently. An attribute
 // whose value is ABAP the editor has no field for (a method call, a
 // variable, a template with ABAP in it), an `id` and a prefixed attribute
-// (`core:require`) are kept with their control as raw ABAP
+// the editor does not model (`core:require`; custom data such as `app:foo`
+// it does) are kept with their control as raw ABAP
 // (`design.abap.raw`, by node id) and written back into the regenerated
 // chain - unless the editor sets that attribute itself, or the control is
 // deleted. A public attribute of a type the data panel has no editor for
@@ -36,7 +37,7 @@
 // generated as always.
 
 import { viewChain, generateClassMap, abapGitFiles, abapType, abapString, fileName, releaseOf } from './abap.js';
-import { fromXml, importReport, escapeXml, escapeBindingLiteral, isSetValue } from './xml.js';
+import { fromXml, importReport, escapeXml, escapeBindingLiteral, isSetValue, keepsPrefixedAttr } from './xml.js';
 import { collectEvents, tableTypes, typeName, clone, walk } from './model.js';
 
 // ------------------------------------------------------------- scanning
@@ -474,6 +475,14 @@ const RAW_MARK = 'le:raw';
 
 function chainToXml(root, raw, dropped) {
   const lines = [];
+  // the namespaces the View declares: a prefixed attribute fromXml( ) keeps
+  // (custom data) is written into the XML, any other stays raw ABAP
+  const declared = {};
+  for (const a of root.attrs) if (/^xmlns:/.test(a.name) && a.text !== undefined) declared[a.name.slice(6)] = a.text;
+  const rawPrefixed = (name) => {
+    const i = name.indexOf(':');
+    return i >= 0 && !keepsPrefixedAttr(declared[name.slice(0, i)], name.slice(i + 1));
+  };
   emit(root, 0, '');
   return lines.join('\n');
 
@@ -491,7 +500,7 @@ function chainToXml(root, raw, dropped) {
         continue;
       }
       const v = attrValue(a);
-      if (!v || a.name === 'id' || a.name.includes(':')) { kept.push({ name: a.name, key: a.key, abap: oneLine(a.raw) }); continue; }
+      if (!v || a.name === 'id' || rawPrefixed(a.name) || (a.name.includes(':') && v.event !== undefined)) { kept.push({ name: a.name, key: a.key, abap: oneLine(a.raw) }); continue; }
       if (v.event !== undefined) attrs.push(`${a.name}=".onEvent('${v.event}')"`);
       else attrs.push(`${a.name}="${escapeXml(v.xml)}"`);
     }
@@ -823,6 +832,7 @@ export function fromClass(source, base) {
   const rawById = {};
   fromXml(xml, design, {
     events: true,
+    skipAttrs: [RAW_MARK],
     onNode: (el, node) => { if (el.attrs[RAW_MARK] !== undefined) rawById[node.id] = raws[Number(el.attrs[RAW_MARK])].attrs; },
   });
   const kept = raws.flatMap((r) => r.attrs.map((a) => ({ control: r.control, attr: a.name, abap: a.abap })));

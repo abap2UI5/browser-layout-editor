@@ -212,8 +212,33 @@ export function texts() {
   return d;
 }
 
+// custom data (a prefixed attribute, its namespace declared with the View)
+// and a row too wide for one line in a table with a table field
+export function edges() {
+  const d = createDesign();
+  d.className = 'ZCL_DSG_EDGES';
+  d.description = 'custom data and wide rows';
+  d.namespaces = { app: 'http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1' };
+  const wide = 'A value wide enough that three of them pass the 255 characters of a line.';
+  d.attributes = [{
+    name: 't_items', type: 'table',
+    fields: [{ name: 'TITLE', type: 'string' }, { name: 'INFO', type: 'string' }, { name: 'NOTE', type: 'string' }, { name: 'KIDS', type: 'table', fields: [{ name: 'TEXT', type: 'string' }] }],
+    rows: [{ TITLE: wide, INFO: wide, NOTE: wide, KIDS: [] }, { TITLE: 'Short', KIDS: [{ TEXT: 'kid' }] }],
+  }];
+  const page = d.root.aggs.content[0];
+  page.props.title = { m: 's', v: 'Edges' };
+  page.aggs.content = [];
+  const text = createNode('Text', { props: { text: 'with custom data' } });
+  text.props['app:key'] = { m: 's', v: 'k1' };
+  insertNode(d, text, page.id);
+  const list = createNode('List');
+  insertNode(d, list, page.id);
+  bindListToTable(d, list.id, 'items', 't_items');
+  return d;
+}
+
 export function allDesigns() {
-  return [...STARTERS.map((s) => [s.id, s.make()]), ['kitchen-sink-1', kitchenSink(1)], ['kitchen-sink-2', kitchenSink(2)], ['texts', texts()]];
+  return [...STARTERS.map((s) => [s.id, s.make()]), ['kitchen-sink-1', kitchenSink(1)], ['kitchen-sink-2', kitchenSink(2)], ['texts', texts()], ['edges', edges()]];
 }
 
 // the same designs as 7.02 classes, under a class name of their own so

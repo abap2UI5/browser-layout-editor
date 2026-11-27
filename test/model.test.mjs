@@ -362,6 +362,67 @@ test('the canvas shows what abap2UI5 sends: midnight is no time, .5 and 1e3 are 
   assert.ok(validate(d).some((i) => i.level === 'warning' && /at: midnight/.test(i.text)));
 });
 
+test('a number too large for its type is warned about, and a decimal is never written with an exponent', async () => {
+  const { generateClass } = await import('../src/abap.js');
+  const { checkValue } = await import('../src/model.js');
+  const d = createDesign();
+  d.attributes = [
+    { name: 'amt', type: 'decimal', value: '1e21' }, { name: 'neg', type: 'decimal', value: '-2.5e22' },
+    { name: 'q', type: 'decimal', value: '123456789012345678' },
+    { name: 'n', type: 'int', value: '99999999999' }, { name: 'lo', type: 'int', value: '-2147483649' },
+    { name: 'wide', type: 'int', value: '123456789012345678901234' },
+  ];
+  const src = generateClass(d);
+  assert.ok(!/'-?\d+(\.\d+)?e[+-]?\d+'/i.test(src), 'no exponent in a literal');
+  assert.match(src, /amt\s+= '1000000000000000000000\.00'\./);
+  assert.match(src, /neg\s+= '-25000000000000000000000\.00'\./);
+  assert.match(src, /wide\s+= 123456789012345678901234\./, 'an int is written as typed');
+  const warnings = validate(d).filter((i) => i.level === 'warning').map((i) => i.text);
+  for (const name of ['amt', 'neg', 'q', 'n', 'lo', 'wide']) assert.ok(warnings.some((t) => t.startsWith(`${name}: `)), name);
+  assert.match(checkValue('int', '2147483648'), /outside the range of type i/);
+  assert.equal(checkValue('int', '2147483647'), null);
+  assert.equal(checkValue('int', '-2147483648'), null);
+  assert.match(checkValue('decimal', '1e29'), /too large for p LENGTH 16 DECIMALS 2/);
+  assert.match(checkValue('decimal', '100000000000000'), /preview/);
+  assert.equal(checkValue('decimal', '99999999999999.99'), null);
+});
+
+test('a control copied into another design brings its namespace: the paste declares it, an undeclared prefix is an error', async () => {
+  const { typeFor, nodeNamespaces, adoptNamespaces, clone } = await import('../src/model.js');
+  const CD = 'http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1';
+  const a = createDesign();
+  const chart = createNode(typeFor(a, 'sap.suite.ui.microchart', 'RadialMicroChart'));
+  a.namespaces.app = CD;
+  chart.props['app:foo'] = { m: 's', v: 'bar' };
+  insertNode(a, chart, page(a).id);
+  const ns = nodeNamespaces(a, [chart]);
+  assert.deepEqual(ns, { microchart: 'sap.suite.ui.microchart', app: CD });
+  // a node without its namespaces: the prefix names nothing, and validate( ) says so
+  const bare = createDesign();
+  insertNode(bare, clone(chart), page(bare).id);
+  assert.ok(!toXml(bare).includes('xmlns:microchart'));
+  assert.deepEqual(errors(bare).filter((t) => /names no namespace/.test(t)).map((t) => t.split(' names')[0]), ['microchart:RadialMicroChart: the prefix microchart', 'microchart:RadialMicroChart: the prefix app']);
+  // with them: declared under this design's prefixes - here `microchart`
+  // and `app` stand for something else already
+  const b = createDesign();
+  b.namespaces = { microchart: 'my.other.lib', app: 'urn:other' };
+  const [pasted] = adoptNamespaces(b, [clone(chart)], ns);
+  insertNode(b, pasted, page(b).id);
+  assert.equal(pasted.type, 'microchart_:RadialMicroChart');
+  assert.deepEqual(Object.keys(pasted.props), ['app_:foo']);
+  assert.equal(b.namespaces.microchart_, 'sap.suite.ui.microchart');
+  assert.equal(b.namespaces.app_, CD);
+  assert.deepEqual(errors(b), []);
+  const xml = toXml(b);
+  assert.ok(xml.includes('xmlns:microchart_="sap.suite.ui.microchart"') && xml.includes(`xmlns:app_="${CD}"`));
+  assert.ok(xml.includes('<microchart_:RadialMicroChart app_:foo="bar"/>'));
+  // into a design that has them under the same prefixes: nothing changes
+  const c = createDesign();
+  const [same] = adoptNamespaces(c, [clone(chart)], ns);
+  assert.equal(same.type, chart.type);
+  assert.deepEqual(c.namespaces, { microchart: 'sap.suite.ui.microchart', app: CD });
+});
+
 test('a table of table fields only binds to a template of static text, not to a table field', () => {
   const d = createDesign();
   d.attributes = [{ name: 't_groups', type: 'table', fields: [{ name: 'KIDS', type: 'table', fields: [{ name: 'TEXT', type: 'string' }] }], rows: [] }];

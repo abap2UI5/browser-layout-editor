@@ -129,7 +129,11 @@ export function abapValue(type, v, release) {
       return pieces.length === 1 ? pieces[0] : PIECES + pieces.join(PIECE);
     }
     case 'int': {
-      const n = parseInt(v, 10);
+      // the digits as typed (no exponent, however long); checkValue( ) warns
+      // about a number outside the range of type i
+      const t = String(v).trim();
+      if (/^[-+]?\d+$/.test(t)) { const b = BigInt(t); return b === 0n ? null : String(b); }
+      const n = parseInt(t, 10);
       return Number.isFinite(n) && n !== 0 ? String(n) : null;
     }
     case 'decimal': {
@@ -137,7 +141,11 @@ export function abapValue(type, v, release) {
       const t = String(v).trim();
       const n = Number(t);
       if (t === '' || !Number.isFinite(n) || n === 0) return null;
-      return /^-?\d+(\.\d+)?$/.test(t) ? `'${t}'` : `'${n.toFixed(2)}'`;
+      if (/^-?\d+(\.\d+)?$/.test(t)) return `'${t}'`;
+      if (Math.abs(n) < 1e21) return `'${n.toFixed(2)}'`;
+      // toFixed( ) writes 1e21 and above with an exponent, which ABAP does
+      // not read into a packed number: the digits as typed, the point moved
+      return `'${expandExponent(t) ?? `${BigInt(n)}.00`}'`;
     }
     case 'bool': return v === true || v === 'true' || v === 'X' ? 'abap_true' : null;
     case 'date': {
@@ -150,6 +158,19 @@ export function abapValue(type, v, release) {
     }
     default: return null;
   }
+}
+
+// 2.5e22 as 25000000000000000000000.00, exactly as typed - null when the
+// text is no exponent or leaves more than two decimals
+function expandExponent(t) {
+  const m = /^([-+]?)(\d*)(?:\.(\d*))?e([-+]?\d+)$/i.exec(t);
+  if (!m) return null;
+  const digits = (m[2] || '') + (m[3] || '');
+  const point = (m[2] || '').length + Number(m[4]);
+  if (point < 0 || digits.length - point > 2) return null;
+  const int = (digits + '0'.repeat(Math.max(0, point - digits.length))).slice(0, point).replace(/^0+(?=\d)/, '') || '0';
+  const dec = digits.slice(point).padEnd(2, '0');
+  return `${m[1] === '-' ? '-' : ''}${int}.${dec}`;
 }
 
 export function fileName(className, ext) {
@@ -292,8 +313,11 @@ function seedTable(attr) {
     const lines = [head];
     rows.forEach((r, i) => {
       const tail = i === rows.length - 1 ? '.' : '';
-      if (r.every(([, v]) => typeof v === 'string')) lines.push(`        ( ${r.map(([n, v]) => `${n} = ${v}`).join(' ')} )${tail ? ' ).' : ''}`);
-      else lines.push(...nestedRowLines(r, '        ', tail ? ' ).' : ''));
+      const rowTail = tail ? ' ).' : '';
+      const one = `        ( ${r.map(([n, v]) => `${n} = ${v}`).join(' ')} )${rowTail}`;
+      // an all-scalar row on one line only while it fits, else one field per line
+      if (r.every(([, v]) => typeof v === 'string') && (!r.length || one.length <= MAX_LINE)) lines.push(one);
+      else lines.push(...nestedRowLines(r, '        ', rowTail));
     });
     return lines;
   }
