@@ -14,7 +14,7 @@
 // An attribute:
 //   { name, type: string|int|decimal|bool|date|time|table, value, fields: [{ name, type }], rows: [{}] }
 
-import { CONTROLS, NAMESPACES, getControl, defaultAggFor, accepts, dropAggOf } from './catalog.js';
+import { CONTROLS, NAMESPACES, getControl, defaultAggFor, accepts, dropAggOf, splitType } from './catalog.js';
 
 export const DESIGN_VERSION = 1;
 export const SCALAR_TYPES = ['string', 'int', 'decimal', 'bool', 'date', 'time'];
@@ -108,16 +108,68 @@ export function normalizeDesign(d) {
 }
 
 // The prefix a library gets in this design's view: the catalogue's where
-// it has one, else the one an import gave it, else the library's last
-// name (sap.suite.ui.microchart -> microchart), made unique and remembered
-export function prefixFor(design, lib) {
+// it has one, else the one an import gave it, else `hint` (the prefix it
+// had where it came from) or the library's last name
+// (sap.suite.ui.microchart -> microchart), made unique and remembered
+export function prefixFor(design, lib, hint) {
   for (const [p, uri] of Object.entries(NAMESPACES)) if (uri === lib) return p;
   design.namespaces = design.namespaces || {};
   for (const [p, uri] of Object.entries(design.namespaces)) if (uri === lib) return p;
-  let p = lib.split('.').pop();
+  const name = /^[A-Za-z_][\w.-]*$/;
+  let p = [hint, lib.split('.').pop(), ...lib.split(/[^\w-]+/).reverse()].find((x) => x && name.test(x) && !/^xml/i.test(x)) || 'ns';
   while (p in NAMESPACES || p in design.namespaces) p += '_';
   design.namespaces[p] = lib;
   return p;
+}
+
+// the prefixes a node uses: of its type and of its prefixed attributes
+function nodePrefixes(n) {
+  return [splitType(n.type).ns, ...Object.keys(n.props || {}).filter((p) => p.includes(':')).map((p) => splitType(p).ns)];
+}
+
+// the namespaces nodes use, prefix -> URI: what a clipboard carries with
+// them, so a paste into another design can declare them
+export function nodeNamespaces(design, nodes) {
+  const out = {};
+  for (const node of nodes) {
+    walk(node, (n) => {
+      for (const ns of nodePrefixes(n)) {
+        const uri = NAMESPACES[ns] ?? (design.namespaces || {})[ns];
+        if (uri !== undefined) out[ns] = uri;
+      }
+      return true;
+    });
+  }
+  return out;
+}
+
+// nodes from another design under this design's prefixes: `namespaces`
+// (nodeNamespaces( ) there) says which URI each prefix stood for; a URI
+// this design has no prefix for yet gets one (prefixFor( )). The nodes are
+// changed in place; a prefix with no URI stays as it is - validate( )
+// reports it
+export function adoptNamespaces(design, nodes, namespaces) {
+  if (!namespaces) return nodes;
+  const to = (ns) => (namespaces[ns] === undefined ? ns : prefixFor(design, namespaces[ns], ns || undefined));
+  const rename = (name) => {
+    const { ns, name: local } = splitType(name);
+    const p = to(ns);
+    return p ? `${p}:${local}` : local;
+  };
+  for (const node of nodes) {
+    walk(node, (n) => {
+      n.type = rename(n.type);
+      if (Object.keys(n.props || {}).some((p) => p.includes(':'))) {
+        n.props = Object.fromEntries(Object.entries(n.props).map(([p, v]) => {
+          if (!p.includes(':')) return [p, v];
+          const q = rename(p);
+          return [q.includes(':') ? q : p, v];
+        }));
+      }
+      return true;
+    });
+  }
+  return nodes;
 }
 
 // the XML name of a control in this design: `Button` for sap.m, else
@@ -711,6 +763,12 @@ export function validate(design) {
   }
   walk(design.root, (n, parent, agg) => {
     const nodeDef = getControl(n.type);
+    // a prefix the View cannot declare: the view does not load
+    for (const ns of new Set(nodePrefixes(n))) {
+      if (!(ns in NAMESPACES) && !(design.namespaces && ns in design.namespaces)) {
+        issues.push({ level: 'error', text: `${n.type}: the prefix ${ns} names no namespace - the view cannot declare it`, node: n.id });
+      }
+    }
     for (const [p, v] of Object.entries(n.props || {})) {
       if (!v) continue;
       if (v.m === 's') {

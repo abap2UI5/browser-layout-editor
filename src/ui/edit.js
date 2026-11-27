@@ -2,7 +2,7 @@
 // at the selection or at a drop, moving by drop, and the clipboard.
 import {
   createNode, clone, walk, findNode, newId, aggAccepts, insertNode, dropTarget, removeNode, moveNode, bindableAggs, bindListToTable,
-  isAncestor, attrTypeFor, checkAttributeName, moveNodes,
+  isAncestor, attrTypeFor, checkAttributeName, moveNodes, nodeNamespaces, adoptNamespaces,
 } from '../model.js';
 import { splitType, getControl } from '../catalog.js';
 import { PATTERNS } from '../patterns.js';
@@ -208,7 +208,10 @@ export function copySelection(cut) {
   walk(root, (n) => { order.push(n.id); return true; });
   hits.sort((a, b) => order.indexOf(a.node.id) - order.indexOf(b.node.id));
   const nodes = hits.map((x) => x.node);
-  const text = JSON.stringify(nodes.length === 1 ? { [CLIP_MARK]: 1, node: nodes[0] } : { [CLIP_MARK]: 1, nodes });
+  // with the namespaces of the nodes: a paste into another design
+  // declares them there (adoptNamespaces( ))
+  const namespaces = nodeNamespaces(state.design, nodes);
+  const text = JSON.stringify(nodes.length === 1 ? { [CLIP_MARK]: 1, node: nodes[0], namespaces } : { [CLIP_MARK]: 1, nodes, namespaces });
   state.clipboard = text;
   try { navigator.clipboard.writeText(text).catch(() => {}); } catch { /* no clipboard */ }
   if (cut) {
@@ -234,9 +237,11 @@ export async function pasteSelection() {
 
 function pasteNodes(onId, place, text = state.clipboard) {
   let nodes;
+  let namespaces;
   try {
     const parsed = JSON.parse(text);
     nodes = parsed && parsed[CLIP_MARK] ? parsed.nodes || (parsed.node ? [parsed.node] : null) : null;
+    namespaces = parsed && parsed.namespaces && typeof parsed.namespaces === 'object' ? parsed.namespaces : null;
   } catch { nodes = null; }
   if (!nodes || !nodes.length) { toast('Nothing to paste'); return; }
   const fresh = nodes.map((node) => {
@@ -246,10 +251,15 @@ function pasteNodes(onId, place, text = state.clipboard) {
   });
   const ids = [];
   commit((d) => {
+    // the nodes under this design's prefixes - the namespaces only stay
+    // when the paste does
+    const before = d.namespaces && { ...d.namespaces };
+    adoptNamespaces(d, fresh, namespaces);
+    const refuse = () => { d.namespaces = before; toast(`${displayType(fresh[0].type)} does not fit here`); return undefined; };
     const t = place || dropTarget(d, onId || 'root', fresh[0].type);
-    if (!t) { toast(`${displayType(fresh[0].type)} does not fit here`); return undefined; }
+    if (!t) return refuse();
     const p = findNode(d.root, t.parentId);
-    if (!p || !aggAccepts(p.node, t.agg, fresh[0].type)) { toast(`${displayType(fresh[0].type)} does not fit here`); return undefined; }
+    if (!p || !aggAccepts(p.node, t.agg, fresh[0].type)) return refuse();
     let index = t.index;
     for (const f of fresh) {
       if (!p || !aggAccepts(p.node, t.agg, f.type)) {
