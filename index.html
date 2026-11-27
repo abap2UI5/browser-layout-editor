@@ -164,7 +164,14 @@
         <div class="canvas-pane" id="canvasPane">
           <div id="previewStatus" class="preview-status hidden" role="status" aria-live="polite"></div>
           <div class="device-frame" id="deviceFrame">
-            <iframe id="preview" title="Preview"></iframe>
+            <!-- sandboxed: a design's markup (core:HTML) runs in an opaque
+                 origin, never on the origin the four tools share - the
+                 parent and the canvas talk by postMessage only -->
+            <iframe id="preview" title="Preview" sandbox="allow-scripts"></iframe>
+            <!-- over the canvas while a control is dragged: the browser
+                 drops nothing into another origin's frame, so the editor
+                 takes the drop and hands the canvas its point (src/ui/preview.js) -->
+            <div id="dropShield" class="drop-shield" hidden></div>
           </div>
           <div id="eventLog" class="event-log hidden" aria-live="polite" aria-label="Events of the preview"></div>
           <!-- the first visit's hint strip (src/ui/first-steps.js) -->

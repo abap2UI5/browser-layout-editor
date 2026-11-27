@@ -5,11 +5,11 @@
 // of the preview and the palette that reaches all of it.
 import { test, expect, waitRendered } from './fixtures.mjs';
 
-const canvasTheme = (page) => page.evaluate(() => {
-  const w = document.querySelector('#preview').contentWindow;
-  return w.sap && w.sap.ui.getCore().getConfiguration().getTheme();
-});
-const canvasVersion = (page) => page.evaluate(() => document.querySelector('#preview').contentWindow.sap.ui.version);
+// the canvas is sandboxed (an opaque origin): the editor's page cannot
+// reach into it, so these ask inside the frame
+const inCanvas = (page, fn) => page.frameLocator('#preview').locator('html').evaluate(fn);
+const canvasTheme = (page) => inCanvas(page, () => window.sap && window.sap.ui.getCore().getConfiguration().getTheme());
+const canvasVersion = (page) => inCanvas(page, () => window.sap.ui.version);
 
 test('the help says what the editor does, then its keys - from ?, the File menu and the palette', async ({ designer: page }) => {
   await page.locator('#crumbs').click();

@@ -395,12 +395,13 @@ test('the canvas zooms out, and a double-click still edits the control under the
   // where the button is on the editor's page: the frame's box, and the
   // button's box in the frame, zoomed (Playwright's own boxes do not know
   // the zoom of a frame)
-  const at = await page.evaluate((x) => {
-    const f = document.querySelector('#preview');
-    const r = f.getBoundingClientRect();
-    const b = f.contentDocument.querySelector(`[id$="--${x}"]`).getBoundingClientRect();
-    return { x: r.left + b.left * 0.5, y: r.top + b.top * 0.5, w: b.width * 0.5, h: b.height * 0.5 };
-  }, id);
+  // (the frame is sandboxed: the button's box is asked inside it)
+  const r = await page.locator('#preview').evaluate((f) => { const b = f.getBoundingClientRect(); return { left: b.left, top: b.top }; });
+  const b = await page.frameLocator('#preview').locator(`[id$="--${id}"]`).first().evaluate((el) => {
+    const x = el.getBoundingClientRect();
+    return { left: x.left, top: x.top, width: x.width, height: x.height };
+  });
+  const at = { x: r.left + b.left * 0.5, y: r.top + b.top * 0.5, w: b.width * 0.5, h: b.height * 0.5 };
   await page.mouse.dblclick(at.x + at.w / 2, at.y + at.h / 2);
   const field = await page.locator('.inline-edit').boundingBox();
   expect(Math.abs(field.x - at.x)).toBeLessThan(4);

@@ -72,8 +72,16 @@ The product is the generated class. It must:
 - A UI5 on another host runs with the editor's rights: `?ui5=` from a
   link takes only this server, localhost and SAP's CDNs (`isLinkableUi5( )`
   in `src/ui/store.js`, the same list in `preview.html`, which takes any
-  host only when the editor frames it). Any other host comes from the UI5
-  field, typed by the user. Never widen the list for a link.
+  host only inside the editor's sandboxed canvas). Any other host comes
+  from the UI5 field, typed by the user. Never widen the list for a link.
+- The canvas frame is `sandbox="allow-scripts"` (`index.html`): a design's
+  markup (`core:HTML`, a class opened from a link) runs in an opaque
+  origin, never on the origin the four tools share. Never add
+  `allow-same-origin`. The editor and the canvas talk by `postMessage`
+  only - the editor's page never reaches into the frame (tests ask inside
+  it, `frameLocator( )`), and a drag onto the canvas lands on the editor's
+  shield over it, which hands the canvas the point (`src/ui/preview.js`).
+  The canvas has no storage: preview code never touches it.
 - An edit on the selection (delete, duplicate, move, wrap, select the
   parent) is written once, in `src/ui/actions.js`, and works on every
   selected control; the keys, the command palette, the canvas toolbar and

@@ -29,6 +29,50 @@ export function frameToPage(x, y) {
   const z = Number(state.prefs.zoom) || 1;
   return { x: r.left + x * z, y: r.top + y * z, z };
 }
+// and back: a point of the editor's page in the frame's CSS pixels
+function pageToFrame(x, y) {
+  const r = $('#preview').getBoundingClientRect();
+  const z = Number(state.prefs.zoom) || 1;
+  return { x: (x - r.left) / z, y: (y - r.top) / z };
+}
+
+// The canvas is sandboxed (an opaque origin, index.html), and the browser
+// drops nothing dragged on the editor's page into another origin's frame.
+// While a drag is on, a shield lies over the canvas: it takes the drag and
+// hands the canvas the point, which finds the control under it and marks
+// or reports the drop as it would for its own drag events.
+function setUpDropShield() {
+  const shield = $('#dropShield');
+  if (!shield) return;
+  const hide = () => {
+    if (shield.hidden) return;
+    shield.hidden = true;
+    postPreview({ type: 'dragleave' });
+  };
+  // shown after the drag has started: a change of the page inside
+  // dragstart may cancel the drag
+  document.addEventListener('dragstart', () => { setTimeout(() => { shield.hidden = false; }, 0); });
+  document.addEventListener('dragend', hide);
+  shield.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = e.dataTransfer.effectAllowed === 'move' ? 'move' : 'copy';
+    const at = pageToFrame(e.clientX, e.clientY);
+    postPreview({ type: 'dragover', x: at.x, y: at.y });
+  });
+  shield.addEventListener('dragleave', (e) => {
+    if (!e.relatedTarget || !shield.contains(e.relatedTarget)) postPreview({ type: 'dragleave' });
+  });
+  shield.addEventListener('drop', (e) => {
+    // the canvas's drop, not the pane's around it (src/app.js)
+    e.preventDefault();
+    e.stopPropagation();
+    const data = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
+    const at = pageToFrame(e.clientX, e.clientY);
+    hide();
+    if (data.startsWith('dsg:')) postPreview({ type: 'drop', data, x: at.x, y: at.y });
+  });
+}
+setUpDropShield();
 
 export function loadPreview() {
   state.previewReady = false;

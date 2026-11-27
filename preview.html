@@ -34,19 +34,22 @@
       var v = p.get('ui5') || '';
       var local = /^local(?::([\w.-]+))?$/.exec(v);
       var own = /^(https?:\/\/|\.{0,2}\/)[^"'<>\s]*$/.test(v);
-      // a UI5 on another host runs its scripts on this origin: a link may
+      // a UI5 on another host runs its scripts on this page: a link may
       // name only this server, localhost or SAP's CDNs - any other host
-      // only the editor that frames this page, where the user typed it.
+      // only inside the editor's canvas, where the user typed it. The
+      // editor frames this page sandboxed (index.html, sandbox=
+      // "allow-scripts"): an opaque origin, no storage, nothing of the
+      // tools that share the origin - opened on its own, this page has the
+      // origin, and takes only the list.
       // Judged by where the browser resolves it: //host/... and /\host/...
       // look like paths but name another host
       if (own) {
         var url = null;
         try { url = /^[\\/]{2}/.test(v) ? null : new URL(v, location.href); } catch (e) { url = null; }
         var trusted = [location.hostname, 'localhost', '127.0.0.1', '[::1]', 'sdk.openui5.org', 'ui5.sap.com', 'openui5.hana.ondemand.com', 'sapui5.hana.ondemand.com'];
-        var framed = false;
-        try { framed = window.parent !== window && window.parent.location.origin === location.origin; } catch (e) { framed = false; }
+        var sandboxed = window.origin === 'null';
         var ok = url && (url.origin === location.origin || (/^https?:$/.test(url.protocol) && trusted.indexOf(url.hostname) >= 0));
-        if (!ok && !(framed && url)) { own = false; v = ''; }
+        if (!ok && !(sandboxed && url)) { own = false; v = ''; }
       }
       var src = local ? '/ui5/' + (local[1] || 'local') + '/resources/sap-ui-core.js'
         : own ? v.replace(/\/+$/, '').replace(/\/resources(\/sap-ui-core\.js)?$/, '') + '/resources/sap-ui-core.js'
