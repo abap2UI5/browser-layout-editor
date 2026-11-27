@@ -305,6 +305,7 @@ loadPreview();
 // ?class=<name>&repo=<owner/repo>[&ref=<branch>][&path=<folder>]
 openClassFromUrl(new URLSearchParams(location.search));
 if (state.refusedUi5) toast(`The link named a UI5 on another host (${state.refusedUi5}); it is not loaded from a link. Type it into the UI5 field to use it.`);
+if (state.refusedPlayground) toast(`The link named a playground on another host (${state.refusedPlayground}); Open in goes to the published one.`);
 
 // a shared link: its design replaces the current one (Recent keeps that) -
 // on load, and when a link is pasted into the address of an open editor

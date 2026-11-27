@@ -120,7 +120,8 @@ Also in the editor:
   [abap2UI5 playground](https://abap2ui5.github.io/browser-playground/), the AI
   App Builder or the AI Agent beside it, in a share link of the
   playground's own format, which all three read; `?playground=<url>` points
-  them at another deployment. **VS Code** hands the class to the abap2UI5
+  them at another deployment for that visit - on abap2ui5.github.io, this
+  server or localhost only, as the whole class goes there. **VS Code** hands the class to the abap2UI5
   extension (`vscode://abap2ui5.abap2ui5/open`), which opens it as an
   unsaved `.clas.abap` and offers to run it.
 - **Save / Open** stores the design as JSON so you can continue later. The
