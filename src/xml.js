@@ -48,13 +48,16 @@ export function valueToXml(value, opts) {
   }
 }
 
-// every prefix the design uses, so the View declares exactly those
-// - in the order the view writes its controls, so the same view always
-// declares them in the same order, however it was built
+// every prefix the design uses - of a control or of a prefixed attribute
+// (custom data, app:foo) - so the View declares exactly those, in the
+// order the view writes them, so the same view always declares them in the
+// same order, however it was built. A prefix the design has no URI for
+// cannot be declared: validate( ) reports it
 export function usedNamespaces(design) {
   const used = new Set(['', 'mvc']);
   const visit = (n) => {
     used.add(splitType(n.type).ns);
+    for (const p of Object.keys(n.props || {})) if (p.includes(':')) used.add(splitType(p).ns);
     for (const a of aggNames(n)) for (const ch of n.aggs[a] || []) visit(ch);
   };
   visit(design.root);
@@ -112,8 +115,9 @@ export function toXml(design, options = {}) {
 
 // A small XML reader: elements, attributes, self-closing tags, comments,
 // processing instructions, CDATA and text (kept trimmed on the element, for
-// a <Text>Hello</Text>). Enough for a view, and the same in the browser and
-// in node, which DOMParser is not.
+// a <Text>Hello</Text>; a CDATA section is text as it stands, unescaped).
+// Enough for a view, and the same in the browser and in node, which
+// DOMParser is not.
 export function parseXml(src) {
   let i = 0;
   const root = { name: '#root', attrs: {}, children: [] };
@@ -124,16 +128,23 @@ export function parseXml(src) {
     if (e === 'amp') return '&';
     if (e === 'quot') return '"';
     if (e === 'apos') return "'";
-    if (e[1] === 'x') return String.fromCodePoint(parseInt(e.slice(2), 16));
-    return String.fromCodePoint(parseInt(e.slice(1), 10));
+    const cp = e[1] === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+    if (!(cp <= 0x10FFFF)) throw new Error(`XML: ${m} is no character`);
+    return String.fromCodePoint(cp);
   });
+  const addText = (t) => { const top = stack[stack.length - 1]; top.text = top.text ? `${top.text} ${t}` : t; };
   while (i < src.length) {
     const lt = src.indexOf('<', i);
     if (lt < 0) break;
     const text = src.slice(i, lt).trim();
-    if (text) { const top = stack[stack.length - 1]; top.text = top.text ? `${top.text} ${decode(text)}` : decode(text); }
+    if (text) addText(decode(text));
     if (src.startsWith('<!--', lt)) { i = end(src.indexOf('-->', lt), 3); continue; }
-    if (src.startsWith('<![CDATA[', lt)) { i = end(src.indexOf(']]>', lt), 3); continue; }
+    if (src.startsWith('<![CDATA[', lt)) {
+      i = end(src.indexOf(']]>', lt), 3);
+      const data = src.slice(lt + 9, i - 3).trim();
+      if (data) addText(data);
+      continue;
+    }
     if (src.startsWith('<?', lt) || src.startsWith('<!', lt)) { i = end(src.indexOf('>', lt), 1); continue; }
     if (src[lt + 1] === '/') {
       const gt = src.indexOf('>', lt);
@@ -177,19 +188,23 @@ export function parseXml(src) {
 // writes - {/NAME} on an attribute of the design, {FIELD} inside a bound
 // list - becomes that binding; any other binding stays a raw expression.
 // Event handlers, ids and core:require are dropped - they name controller
-// methods abap2UI5 does not have. What was dropped or could not be
-// resolved is listed in the report (`importReport( )`), so the designer
-// can say so and offer to create the attributes. With `options.events` a
-// handler in the preview flavour this module writes, `.onEvent('NAME')`,
-// is the event NAME instead - what a view read out of a class carries;
-// `options.onNode(el, node)` sees every element with the node it became.
+// methods abap2UI5 does not have. Any other prefixed attribute (custom
+// data: app:foo) is kept as a property of that name, its namespace
+// declared with the View. What was dropped or could not be resolved is
+// listed in the report (`importReport( )`), so the designer can say so and
+// offer to create the attributes. With `options.events` a handler in the
+// preview flavour this module writes, `.onEvent('NAME')`, is the event
+// NAME instead - what a view read out of a class carries;
+// `options.onNode(el, node)` sees every element with the node it became,
+// `options.skipAttrs` names attributes the caller reads there itself.
 export function fromXml(src, base, options = {}) {
   const doc = parseXml(src);
   if (!doc) throw new Error('XML: empty document');
   const uriToPrefix = {};
   for (const [p, uri] of Object.entries(NAMESPACES)) uriToPrefix[uri] = p;
   const extraNs = {};
-  const report = { handlers: [], ids: 0, unresolved: [], expressions: 0, unknown: [] };
+  const report = { handlers: [], ids: 0, unresolved: [], expressions: 0, unknown: [], attributes: [] };
+  const skipAttrs = new Set(options.skipAttrs || []);
   const attrs = new Map((base.attributes || []).map((a) => [a.name.toUpperCase(), a]));
 
   const design = base;
@@ -198,6 +213,9 @@ export function fromXml(src, base, options = {}) {
 
   const scope0 = nsScope({}, doc);
   const [, viewName] = qname(doc.name, scope0);
+  // a namespace the View declares stays known, used or not: an attribute
+  // an imported class keeps as raw ABAP may be in it
+  for (const [p, uri] of Object.entries(scope0)) if (p && p !== 'xml') canonOf(p, uri);
   if (viewName !== 'View') throw new Error(`XML: the root element is ${doc.name}, not an mvc:View`);
   for (const ch of doc.children) {
     const node = convert(ch, scope0, null);
@@ -246,6 +264,12 @@ export function fromXml(src, base, options = {}) {
     const local = i < 0 ? name : name.slice(i + 1);
     const uri = scope[p];
     if (uri === undefined) throw new Error(`XML: prefix "${p}" of <${name}> is not declared`);
+    return [canonOf(p, uri), local];
+  }
+
+  // the prefix a namespace URI has in the design: the catalogue's, else
+  // the one the view gave it, made unique
+  function canonOf(p, uri) {
     let canon = uriToPrefix[uri];
     if (canon === undefined) {
       canon = p || uri.split('.').pop();
@@ -253,7 +277,7 @@ export function fromXml(src, base, options = {}) {
       extraNs[canon] = uri;
       uriToPrefix[uri] = canon;
     }
-    return [canon, local];
+    return canon;
   }
 
   // rowTable: the table attribute whose rows the enclosing list repeats
@@ -266,8 +290,19 @@ export function fromXml(src, base, options = {}) {
     const node = { id: newId(), type, props: {}, events: {}, aggs: {} };
     if (options.onNode) options.onNode(el, node);
     const bindable = c && c.aggs ? Object.keys(c.aggs).filter((a) => c.aggs[a].bindable) : [];
-    for (const [k, v] of Object.entries(el.attrs)) {
-      if (k === 'xmlns' || k.startsWith('xmlns:') || k.includes(':')) continue;
+    for (const [k0, v] of Object.entries(el.attrs)) {
+      if (k0 === 'xmlns' || k0.startsWith('xmlns:') || skipAttrs.has(k0)) continue;
+      let k = k0;
+      if (k0.includes(':')) {
+        // a prefixed attribute under the design's prefix for its namespace;
+        // core:require (modules for controller code), one in sap.m's own
+        // namespace or with an undeclared prefix has no place: dropped
+        const [p, aLocal] = [k0.slice(0, k0.indexOf(':')), k0.slice(k0.indexOf(':') + 1)];
+        const uri = p === 'xml' ? undefined : scope[p];
+        if (!keepsPrefixedAttr(uri, aLocal)) { report.attributes.push(`${local}.${k0}`); continue; }
+        const canon = canonOf(p, uri);
+        k = `${canon}:${aLocal}`;
+      }
       if (k === 'id') { report.ids += 1; continue; }
       const named = options.events && /^\.onEvent\('([A-Z0-9_]+)'\)$/.exec(v);
       if (named) { node.events[k] = named[1]; continue; }
@@ -275,6 +310,7 @@ export function fromXml(src, base, options = {}) {
       node.props[k] = isBinding(v) ? bindingValue(v, k, bindable.includes(k), rowTable) : { m: 's', v: unescapeBindingLiteral(v) };
     }
     if (el.text && c && c.props && c.props.text && !node.props.text) node.props.text = { m: 's', v: el.text };
+    else if (el.text) report.attributes.push(`${local} text content`);
     // the rows a bound aggregation repeats, for the template inside it
     const tableOf = (agg) => {
       const b = node.props[agg];
@@ -311,8 +347,16 @@ export function fromXml(src, base, options = {}) {
 
 let lastReport = null;
 
+// Does fromXml( ) keep an attribute of namespace `uri` named `local` as a
+// property? Not core:require (modules for controller code), not one in
+// sap.m's own namespace, not one whose prefix nothing declares
+export function keepsPrefixedAttr(uri, local) {
+  return uri !== undefined && uri !== NAMESPACES[''] && !(uri === NAMESPACES.core && local === 'require');
+}
+
 // What the last fromXml( ) dropped or left as an expression:
-//   { handlers: ['Button.press'], ids, unresolved: [{ path, agg }], expressions, unknown: [type] }
+//   { handlers: ['Button.press'], ids, unresolved: [{ path, agg }], expressions, unknown: [type],
+//     attributes: ['Page.core:require', 'Label text content'] }   (the rest dropped)
 export function importReport() {
   return lastReport;
 }

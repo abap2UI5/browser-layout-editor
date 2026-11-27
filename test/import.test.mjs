@@ -52,6 +52,36 @@ test('handlers, ids and core:require are dropped and counted, unknown controls l
   assert.ok(toXml(d).includes('class="sapUiSmallMargin"'));
 });
 
+test('CDATA is text, a prefixed attribute is kept with its namespace, what has no place is reported', async () => {
+  const { generateClass, viewChain } = await import('../src/abap.js');
+  const { builderXml } = await import('./builder.mjs');
+  const CD = 'http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1';
+  const d = fromXml(`<mvc:View xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc" xmlns:core="sap.ui.core" xmlns:app="${CD}"><Page><Text app:foo="bar"><![CDATA[Hello <b> & ]]></Text><Button core:require="{x:'y'}" text="Go"/><Label text="set">ignored</Label></Page></mvc:View>`, base());
+  const [text, button] = first(d).aggs.content;
+  assert.deepEqual(text.props, { 'app:foo': { m: 's', v: 'bar' }, text: { m: 's', v: 'Hello <b> &' } });
+  assert.deepEqual(Object.keys(button.props), ['text']);
+  assert.deepEqual(importReport().attributes, ['Button.core:require', 'Label text content']);
+  const xml = toXml(d);
+  assert.ok(xml.includes(`xmlns:app="${CD}"`), 'the View declares the namespace of the attribute');
+  assert.ok(xml.includes('<Text app:foo="bar" text="Hello &lt;b&gt; &amp;"/>'));
+  assert.deepEqual(validate(d).filter((i) => i.level === 'error'), []);
+  assert.match(generateClass(d), /n = `app:foo`\s+v = `bar`/);
+  assert.equal(builderXml(viewChain(d).join('\n')), xml.replace(/>\s+</g, '><'));
+  // under another prefix in the source, the same namespace keeps one prefix
+  const again = fromXml(`<mvc:View xmlns="sap.m" xmlns:mvc="sap.ui.core.mvc" xmlns:cd="${CD}"><Text cd:k="v"/></mvc:View>`, base());
+  assert.deepEqual(Object.keys(first(again).props), ['cd:k']);
+  assert.equal(again.namespaces.cd, CD);
+  // a prefix nothing declares is no attribute either
+  fromXml(VIEW('<Text x:k="v"/>'), base());
+  assert.deepEqual(importReport().attributes, ['Text.x:k']);
+});
+
+test('a character reference to no character fails as an XML error', () => {
+  assert.throws(() => fromXml(VIEW('<Text text="&#99999999;"/>'), base()), /^Error: XML: &#99999999; is no character/);
+  assert.throws(() => parseXml('<a b="&#x110000;"/>'), /XML: /);
+  assert.equal(parseXml('<a b="&#x10FFFF;"/>').attrs.b, '\u{10FFFF}');
+});
+
 test('B12: a child without a wrapper lands where a drop would', () => {
   const d = fromXml(VIEW(`<Page><IconTabBar><IconTabFilter text="A"/></IconTabBar><Bar><Title text="t"/></Bar></Page>`), base());
   const [tabs, bar] = first(d).aggs.content;

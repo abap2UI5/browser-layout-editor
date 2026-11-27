@@ -132,6 +132,7 @@ function importXmlText(text, before) {
   const lines = [];
   if (r.handlers.length) lines.push(`${r.handlers.length} event handler(s) dropped - abap2UI5 events are names: ${[...new Set(r.handlers)].slice(0, 6).join(', ')}${r.handlers.length > 6 ? ', …' : ''}`);
   if (r.ids) lines.push(`${r.ids} id(s) dropped - the class needs none`);
+  if (r.attributes.length) lines.push(`Dropped, the editor has no place for: ${r.attributes.join(', ')}`);
   if (r.unknown.length) lines.push(`Not in the palette, kept as imported: ${r.unknown.join(', ')}`);
   if (r.expressions) lines.push(`${r.expressions} binding(s) kept as UI5 expressions (ƒx)`);
   if (!lines.length && !r.unresolved.length) { toast('View imported'); return; }
@@ -266,6 +267,7 @@ function importClassText(text, before) {
   if (r.skipped.length) lines.push(`Public attributes of a type the Data tab has not, left to the class: ${r.skipped.map((x) => `${x.name} (${x.type})`).join(', ')}`);
   if (r.seeds.length) lines.push(`Sample data not read: ${r.seeds.join('; ')}`);
   if (r.handlers.length) lines.push(`${r.handlers.length} event handler(s) dropped: ${[...new Set(r.handlers)].join(', ')}`);
+  if (r.attributes.length) lines.push(`Dropped, the editor has no place for: ${r.attributes.join(', ')}`);
   if (r.expressions) lines.push(`${r.expressions} binding(s) kept as UI5 expressions (ƒx)`);
   const body = h('div', {}, lines.map((t) => h('p', { text: t })));
   const buttons = [{ text: 'OK', primary: !r.unresolved.length, action: () => true }];
