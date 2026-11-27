@@ -282,9 +282,10 @@ function classFile() {
   return { name: fileName(state.design.className, 'clas.abap'), source: generateClassSource(state.design) };
 }
 
-// the playground's base URL: ?playground=<url> once, remembered
+// the playground's base URL: ?playground=<url> for this visit (a host of
+// the family, isLinkablePlayground( ) in store.js), else the published one
 export function playgroundBase() {
-  return state.prefs.playground || PLAYGROUND_URL;
+  return state.playground || PLAYGROUND_URL;
 }
 
 // The class in another of the abap2UI5 tools, in a new tab: the

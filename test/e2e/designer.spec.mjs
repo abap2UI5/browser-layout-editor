@@ -21,7 +21,10 @@ test('starts with a design that renders and a class that is ready', async ({ des
 test('a control dragged from the controls onto the canvas lands in the view', async ({ designer: page }) => {
   const before = (await nodeIds(page, 'Button')).length;
   const pageId = (await nodeIds(page, 'Page'))[0];
-  await page.locator('.ins-item[data-type="Button"]').dragTo(preview(page).locator(`[id$="--${pageId}-cont"]`));
+  // the drop lands on the editor's shield over the sandboxed canvas, which
+  // hands the canvas the point (force: the shield is what is hit there)
+  await page.locator('.ins-item[data-type="Button"]').dragTo(preview(page).locator(`[id$="--${pageId}-cont"]`), { force: true });
+  await expect(page.locator('#dropShield')).toBeHidden();
   await expect.poll(async () => (await nodeIds(page, 'Button')).length).toBe(before + 1);
   await expect(selectedType(page)).toHaveText('Button');
   await waitRendered(page);
@@ -312,6 +315,22 @@ test('a list inside a bound list repeats a table field of the row', async ({ des
   const abap = await abapOf(page);
   expect(abap).toMatch(/n = `items` +v = `\{NODES\}`/);
   await expect(preview(page).getByText('Second child')).toBeVisible();
+});
+
+test('the canvas is sandboxed: script in a core:HTML of a design cannot reach the storage of the tools', async ({ designer: page }) => {
+  // a class opened from a link may carry markup that runs: it runs in the
+  // canvas's opaque origin, never on the origin the four tools share
+  const probe = "try { localStorage.setItem('dsg-probe', '1'); this.parentNode.title = 'stored' } catch (e) { this.parentNode.title = 'blocked' }";
+  await page.evaluate((onerror) => window.designer.commit((d) => {
+    d.root.aggs.content[0].aggs.content.push({
+      id: 'nhtml1', type: 'core:HTML', events: {}, aggs: {},
+      props: { content: { m: 's', v: `<div class="dsg-probe"><img src="data:," onerror="${onerror}"></div>` } },
+    });
+  }), probe);
+  await expect(preview(page).locator('.dsg-probe')).toHaveAttribute('title', 'blocked');
+  expect(await page.evaluate(() => localStorage.getItem('dsg-probe'))).toBeNull();
+  expect(await preview(page).locator('html').evaluate(() => window.origin)).toBe('null');
+  await expect(page.locator('#previewStatus')).toBeHidden();
 });
 
 test('a view UI5 cannot render says why on the canvas, and the next edit renders again', async ({ designer: page }) => {

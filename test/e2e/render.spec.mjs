@@ -15,11 +15,16 @@ for (const [id, design] of allDesigns()) {
     const walk = (n) => { if (n.id !== 'root') ids.push(n.id); for (const l of Object.values(n.aggs || {})) l.forEach(walk); };
     walk(design.root);
     const frame = page.frameLocator('#preview');
-    const missing = [];
-    for (const nid of ids) {
-      const n = await frame.locator(`[id$="--${nid}"], [id*="--${nid}-"]`).count();
-      if (!n) missing.push(nid);
-    }
+    // asked until it holds: on 1.71 a SimpleForm puts its content into the
+    // page a moment after the view is there (its layout renders again)
+    const missingNow = async () => {
+      const out = [];
+      for (const nid of ids) {
+        const n = await frame.locator(`[id$="--${nid}"], [id*="--${nid}-"]`).count();
+        if (!n) out.push(nid);
+      }
+      return out;
+    };
     // what UI5 does not put in the page: the content of a tab that is not
     // selected, the items of a dropdown until it opens, the pages of a
     // carousel after the first, a tab container's items (their content is
@@ -31,8 +36,10 @@ for (const [id, design] of allDesigns()) {
     const where = {};
     const place = (n, path) => { where[n.id] = `${path}/${n.type}`; for (const [a, l] of Object.entries(n.aggs || {})) l.forEach((ch) => place(ch, `${path}/${n.type}.${a}`)); };
     place(design.root, '');
-    const unexpected = missing.filter((id) => !expected.has(id)).map((id) => where[id]);
-    expect(unexpected, `not in the page though it should be: ${unexpected.join(', ')}`).toEqual([]);
+    await expect(async () => {
+      const unexpected = (await missingNow()).filter((id) => !expected.has(id)).map((id) => where[id]);
+      expect(unexpected, `not in the page though it should be: ${unexpected.join(', ')}`).toEqual([]);
+    }).toPass({ timeout: 15_000 });
   });
 }
 

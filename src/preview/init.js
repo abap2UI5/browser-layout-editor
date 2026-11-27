@@ -219,6 +219,7 @@ sap.ui.define([
     promise.then(function (v) {
       if (done) { destroyView(v); return; } // timed out meanwhile: the next render owns the canvas
       try {
+        sandboxSafeUploader();
         v.setModel(new JSONModel(msg.model));
         destroyView(view);
         view = v;
@@ -240,6 +241,32 @@ sap.ui.define([
     }, function (err) {
       fail('The view does not render', err);
     }).then(finish, function (err) { fail('The view does not render', err); finish(); });
+  }
+
+  // The canvas is sandboxed (index.html: sandbox="allow-scripts", an
+  // opaque origin): UI5's FileUploader names its hidden upload frame
+  // through that frame's window, which a sandboxed page may not touch, and
+  // throws while it renders. The frame is made here, named by its
+  // attribute, before the FileUploader asks for it - the canvas never
+  // uploads. Once its module is loaded, i.e. once a view used it.
+  var uploaderPatched = false;
+  function sandboxSafeUploader() {
+    var FileUploader = uploaderPatched ? null : sap.ui.require('sap/ui/unified/FileUploader');
+    if (!FileUploader) return;
+    uploaderPatched = true;
+    var prepare = FileUploader.prototype.prepareFileUploadAndIFrame;
+    if (typeof prepare !== 'function') return;
+    FileUploader.prototype.prepareFileUploadAndIFrame = function () {
+      if (!this.oIFrameRef) {
+        var frame = document.createElement('iframe');
+        frame.style.display = 'none';
+        frame.id = this.getId() + '-frame';
+        frame.name = frame.id;
+        sap.ui.getCore().getStaticAreaRef().appendChild(frame);
+        this.oIFrameRef = frame;
+      }
+      return prepare.apply(this, arguments);
+    };
   }
 
   // the metadata of a control class, the shape tools/ui5-metadata.mjs
@@ -312,6 +339,8 @@ sap.ui.define([
       also = msg.also || [];
       selectedLabel = msg.label || '';
       highlight(true);
+    } else if (msg.type === 'dragover' || msg.type === 'dragleave' || msg.type === 'drop') {
+      dragAt(msg);
     } else if (msg.type === 'mode') {
       mode = msg.mode;
       mark('dsg-hover', null);
@@ -373,11 +402,23 @@ sap.ui.define([
     DROP_CLASSES.forEach(function (c) { mark(c, null); });
     if (el) el.classList.add(zone === 'before' ? 'dsg-drop-before' : zone === 'after' ? 'dsg-drop-after' : 'dsg-drop');
   }
+  // a drag over the canvas: the control under the point is marked, a drop
+  // goes to the designer - from the frame's own drag events, or from the
+  // designer's shield over the canvas (the frame is sandboxed, and the
+  // browser drops nothing from the editor's page into it), as a point
+  function dragOver(target, clientY) {
+    var el = domOf(nodeIdOf(target));
+    markDrop(el || document.getElementById('content'), dropZone({ clientY: clientY }, el));
+  }
+  function dropOn(target, clientY, data) {
+    markDrop(null);
+    var id = nodeIdOf(target);
+    if (data && data.indexOf('dsg:') === 0) post({ type: 'drop', data: data, onId: id || 'root', zone: dropZone({ clientY: clientY }, domOf(id)) });
+  }
   document.addEventListener('dragover', function (e) {
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-    var el = domOf(nodeIdOf(e.target));
-    markDrop(el || document.getElementById('content'), dropZone(e, el));
+    dragOver(e.target, e.clientY);
   }, true);
   document.addEventListener('dragleave', function (e) {
     if (!e.relatedTarget) markDrop(null);
@@ -385,11 +426,16 @@ sap.ui.define([
   document.addEventListener('drop', function (e) {
     e.preventDefault();
     e.stopPropagation();
-    markDrop(null);
-    var data = e.dataTransfer && e.dataTransfer.getData('text/plain');
-    var id = nodeIdOf(e.target);
-    if (data && data.indexOf('dsg:') === 0) post({ type: 'drop', data: data, onId: id || 'root', zone: dropZone(e, domOf(id)) });
+    dropOn(e.target, e.clientY, e.dataTransfer && e.dataTransfer.getData('text/plain'));
   }, true);
+  function dragAt(msg) {
+    var x = Number(msg.x);
+    var y = Number(msg.y);
+    if (msg.type === 'dragleave' || isNaN(x) || isNaN(y)) { markDrop(null); return; }
+    var target = document.elementFromPoint(x, y);
+    if (msg.type === 'drop') dropOn(target, y, String(msg.data || ''));
+    else dragOver(target, y);
+  }
 
   document.addEventListener('keydown', function (e) {
     // the designer's shortcuts work while the preview has the focus

@@ -7,6 +7,7 @@
 import { findNode, normalizeDesign } from '../model.js';
 import { STARTERS } from '../starters.js';
 import { toBase64Url } from '../handoff.js';
+import { PLAYGROUND_ROOT, TOOLS } from '../family.js';
 import { $, displayType, toastError, setStatus } from './dom.js';
 import { withStoredRelease } from './release.js';
 
@@ -67,6 +68,23 @@ export function isLinkableUi5(v) {
   } catch { return false; }
 }
 
+// a ?playground= a link may set: where Export -> Open in sends the whole
+// class, in the share fragment - so only the playground's own origin (the
+// one the four tools share), this server and localhost, for a deployment
+// under test. The same spirit as isLinkableUi5( )
+const FAMILY_ORIGINS = [PLAYGROUND_ROOT, ...TOOLS.map((t) => t.href)].flatMap((href) => {
+  try { return [new URL(href).origin]; } catch { return []; }
+});
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+export function isLinkablePlayground(v) {
+  if (typeof v !== 'string' || !v || /^[\\/]{2}/.test(v) || /\s/.test(v)) return false;
+  try {
+    const url = new URL(v, location.href);
+    if (!/^https?:$/.test(url.protocol) || url.username || url.password) return false;
+    return url.origin === location.origin || FAMILY_ORIGINS.includes(url.origin) || LOCAL_HOSTS.includes(url.hostname);
+  } catch { return false; }
+}
+
 // a UI5 of your own for the canvas, as typed: the folder that holds
 // resources/ - an http(s) URL or a path on this server (preview.html
 // checks the same shape, and the hosts above, in its own script)
@@ -89,9 +107,15 @@ export function loadPrefs() {
   const q = new URLSearchParams(location.search).get('ui5');
   if (q !== null && isLinkableUi5(q)) state.prefs.ui5 = q;
   else if (q !== null) state.refusedUi5 = q;
-  // ?playground=<base url> sets where "Open in Playground" goes
+  // ?playground=<base url> sets where Export -> Open in goes - for this
+  // visit only, and only to a host of the family (isLinkablePlayground( )):
+  // a link is anybody's, and a remembered one would send every class after
+  // it there. Editors before this one remembered it in the preferences:
+  // forgotten, there too.
+  if ('playground' in state.prefs) { delete state.prefs.playground; savePrefs(); }
   const pg = new URLSearchParams(location.search).get('playground');
-  if (pg !== null) { state.prefs.playground = pg; savePrefs(); }
+  if (pg !== null && isLinkablePlayground(pg)) state.playground = new URL(pg, location.href).href;
+  else if (pg !== null) state.refusedPlayground = pg;
   state.view = state.prefs.view || 'split';
 }
 

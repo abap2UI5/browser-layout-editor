@@ -13,7 +13,7 @@ import { allDesigns, allDesigns702 } from './fixtures.mjs';
 import { generateClass } from '../src/abap.js';
 import { toXml } from '../src/xml.js';
 import { createDesign, createNode, insertNode, validate, walk, aggNames, clone } from '../src/model.js';
-import { fromClass, classReport, classSource, generateClassSource, classFiles, readViewChain, readPublicSection, readSeeds, sourceUrl, repoClassUrl } from '../src/clas.js';
+import { fromClass, classReport, classSource, generateClassSource, classFiles, readViewChain, readPublicSection, readSeeds, sourceUrl, repoClassUrl, maskSource } from '../src/clas.js';
 
 const SAMPLE = new URL('./fixtures/z2ui5_cl_smp_app_493.clas.abap', import.meta.url);
 
@@ -353,6 +353,53 @@ test('what cannot be read is refused with a reason', () => {
   const chain = readViewChain('METHOD x. DATA(v) = z2ui5_cl_ui5_view_builder=>factory( )->ele( `View` )->foo( ). ENDMETHOD.');
   assert.equal(chain.ok, false);
   assert.match(chain.why, /foo/);
+});
+
+test('an attribute set twice, or given two of v, b and t, is refused - never one of them dropped', () => {
+  const at = (chain) => readViewChain(`METHOD x. DATA(v) = z2ui5_cl_ui5_view_builder=>factory( )->ele( n = \`View\` ns = \`mvc\` )->tag( \`Button\` )${chain}. ENDMETHOD.`);
+  // the same attribute twice: the view would keep the last, A gone
+  let chain = at('->a( n = `text` v = `A` )->a( n = `text` v = `B` )');
+  assert.equal(chain.ok, false);
+  assert.match(chain.why, /`text` is set twice on Button/);
+  // twice, another attribute between, the second a b
+  chain = at('->a( n = `text` v = `A` )->a( n = `type` v = `Emphasized` )->a( n = `text` b = abap_true )');
+  assert.equal(chain.ok, false);
+  assert.match(chain.why, /set twice/);
+  // the old `v = `` b = client->_bind_edit( x )`: read as an empty v, the binding was lost
+  chain = at('->a( n = `value` v = `` b = client->_bind_edit( name ) )');
+  assert.equal(chain.ok, false);
+  assert.match(chain.why, /`value` is given more than one of v, b and t/);
+  assert.equal(at('->a( n = `text` v = `A` t = `B` )').ok, false);
+  // one of each is read as before
+  assert.equal(at('->a( n = `text` v = `A` )->a( n = `type` v = `Emphasized` )').ok, true);
+  // and a class with one says so on import
+  const form = generateClass(allDesigns().find(([id]) => id === 'form')[1]);
+  const src = form.replace('->a( n = `text` v = `Name`', '->a( n = `text` v = `Name` )->a( n = `text` v = `Again`');
+  assert.notEqual(src, form);
+  assert.throws(() => fromClass(src, createDesign()), /set twice/);
+});
+
+test('a comment inside a string template\'s embedded expression holds no brace', () => {
+  // |...{ ... }...| whose expression runs over lines may carry a comment,
+  // and a } in it is the comment's: read as the expression's end, the
+  // template ended at that line, its closing | opened another, and the
+  // statement ran on into the chain below (the linter's scrub( ) reads it
+  // the same way, as does the playground's chain-read.mjs)
+  const template = '    DATA(hello) = |Hello { to_upper(\n'
+    + '      " a } in a comment, and a | too\n'
+    + '* a line comment with a }\n'
+    + '      name ) }!|.\n';
+  const masked = maskSource(template);
+  assert.equal(masked.indexOf('.'), template.indexOf('|.') + 1, 'the statement ends after the template');
+  assert.doesNotMatch(masked, /[|{}]/);
+  const form = generateClass(allDesigns().find(([id]) => id === 'form')[1]);
+  const at = '    DATA(view) = z2ui5_cl_ui5_view_builder=>factory(';
+  const src = form.replace(at, template + at);
+  assert.notEqual(src, form);
+  const design = fromClass(src, createDesign());
+  assert.deepEqual(classReport().dropped, []);
+  assert.equal(generateClassSource(design), src, 'the template stays, the chain round-trips');
+  assert.equal(readViewChain(src).start, readViewChain(form).start + template.length);
 });
 
 test('the public section: the types the editor has, the rest reported, DATA: chains and VALUE', () => {

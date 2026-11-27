@@ -46,7 +46,10 @@ export function startServer(port = 0) {
       if (file !== base && !file.startsWith(base.endsWith(sep) ? base : base + sep)) throw Object.assign(new Error('outside'), { code: 'ENOENT' });
       if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
       const body = await readFile(file);
-      res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
+      // the canvas is a sandboxed frame (an opaque origin): what UI5 reads
+      // from here by XHR is a cross-origin request, as GitHub Pages
+      // answers it with the same header
+      res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
       res.end(body);
     } catch {
       res.writeHead(404, { 'content-type': 'text/plain' });
