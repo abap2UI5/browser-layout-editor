@@ -94,6 +94,14 @@ function closingTemplate(source, from) {
     if (ch === '\n' && depth === 0) { depths.pop(); if (!depths.length) return at; continue; }
     if (ch === '\\' && depth === 0) { at += 2; continue; }
     if (depth > 0 && (ch === "'" || ch === '`')) { at = closingQuote(source, at, ch); continue; }
+    // a comment inside an embedded expression that runs over lines - `"`
+    // to the line end, `*` in the first column - holds no brace: a `}` in
+    // it does not end the expression (the linter's scrub( ) reads it so)
+    if (depth > 0 && (ch === '"' || (ch === '*' && source[at - 1] === '\n'))) {
+      const eol = source.indexOf('\n', at);
+      at = eol === -1 ? source.length : eol;
+      continue;
+    }
     if (ch === '{') depths[top] += 1;
     else if (ch === '}') depths[top] = Math.max(0, depth - 1);
     else if (ch === '|' && depth === 0) { depths.pop(); if (!depths.length) return at + 1; } else if (ch === '|') depths.push(0);
@@ -334,6 +342,19 @@ function apply(cursor, method, args) {
     if (name === undefined) return { ok: false, why: 'An attribute is set under a name that is not a literal.' };
     const key = args.v ? 'v' : args.b ? 'b' : args.t ? 't' : null;
     if (!key) return { ok: false, why: `\`${name}\` is set without a value.` };
+    // more than one of v, b and t (the builder still takes the old
+    // `v = \`\` b = client->_bind_edit( x )`): read as the first, the binding
+    // would be gone from the design - and from the class written back. Not
+    // guessed at (the playground's src/shell/chain-read.mjs refuses it too)
+    if (['v', 'b', 't'].filter((k) => args[k]).length > 1) {
+      return { ok: false, why: `\`${name}\` is given more than one of v, b and t - pass exactly one in the ABAP first.` };
+    }
+    // the same attribute twice on one control: the view keeps one of them,
+    // and the class written back would have lost the other. Which one is
+    // meant is not guessed either
+    if (target.attrs.some((a) => a.name === name)) {
+      return { ok: false, why: `\`${name}\` is set twice on ${target.ns ? `${target.ns}:` : ''}${target.name} - take one of them out in the ABAP first.` };
+    }
     target.attrs.push({ name, key, raw: args[key].raw, text: args[key].text });
     return { ok: true, cursor };
   }
