@@ -362,6 +362,31 @@ test('the canvas shows what abap2UI5 sends: midnight is no time, .5 and 1e3 are 
   assert.ok(validate(d).some((i) => i.level === 'warning' && /at: midnight/.test(i.text)));
 });
 
+test('a number too large for its type is warned about, and a decimal is never written with an exponent', async () => {
+  const { generateClass } = await import('../src/abap.js');
+  const { checkValue } = await import('../src/model.js');
+  const d = createDesign();
+  d.attributes = [
+    { name: 'amt', type: 'decimal', value: '1e21' }, { name: 'neg', type: 'decimal', value: '-2.5e22' },
+    { name: 'q', type: 'decimal', value: '123456789012345678' },
+    { name: 'n', type: 'int', value: '99999999999' }, { name: 'lo', type: 'int', value: '-2147483649' },
+    { name: 'wide', type: 'int', value: '123456789012345678901234' },
+  ];
+  const src = generateClass(d);
+  assert.ok(!/'-?\d+(\.\d+)?e[+-]?\d+'/i.test(src), 'no exponent in a literal');
+  assert.match(src, /amt\s+= '1000000000000000000000\.00'\./);
+  assert.match(src, /neg\s+= '-25000000000000000000000\.00'\./);
+  assert.match(src, /wide\s+= 123456789012345678901234\./, 'an int is written as typed');
+  const warnings = validate(d).filter((i) => i.level === 'warning').map((i) => i.text);
+  for (const name of ['amt', 'neg', 'q', 'n', 'lo', 'wide']) assert.ok(warnings.some((t) => t.startsWith(`${name}: `)), name);
+  assert.match(checkValue('int', '2147483648'), /outside the range of type i/);
+  assert.equal(checkValue('int', '2147483647'), null);
+  assert.equal(checkValue('int', '-2147483648'), null);
+  assert.match(checkValue('decimal', '1e29'), /too large for p LENGTH 16 DECIMALS 2/);
+  assert.match(checkValue('decimal', '100000000000000'), /preview/);
+  assert.equal(checkValue('decimal', '99999999999999.99'), null);
+});
+
 test('a table of table fields only binds to a template of static text, not to a table field', () => {
   const d = createDesign();
   d.attributes = [{ name: 't_groups', type: 'table', fields: [{ name: 'KIDS', type: 'table', fields: [{ name: 'TEXT', type: 'string' }] }], rows: [] }];

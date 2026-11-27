@@ -787,17 +787,28 @@ export function validate(design) {
   return issues;
 }
 
+// the range of ABAP's type i
+const INT_MIN = -2147483648n;
+const INT_MAX = 2147483647n;
+
 // A sample value the class cannot carry as it is: more than two decimals
-// (the type is p LENGTH 16 DECIMALS 2), a time without seconds, a date or
-// time in another shape than the data panel writes
+// (the type is p LENGTH 16 DECIMALS 2), a number too large for its type, a
+// time without seconds, a date or time in another shape than the data
+// panel writes
 export function checkValue(type, v) {
   if (v === '' || v == null) return null;
   const t = String(v).trim();
   if (type === 'decimal') {
-    if (!Number.isFinite(Number(t))) return `"${t}" is not a number`;
-    if (/^-?\d*\.\d{3,}$/.test(t) || (/e/i.test(t) && Number(t) !== Math.round(Number(t) * 100) / 100)) return `"${t}" has more than 2 decimals - the class rounds it`;
+    const n = Number(t);
+    if (!Number.isFinite(n)) return `"${t}" is not a number`;
+    // p LENGTH 16 DECIMALS 2 holds 29 digits before the point
+    if (Math.abs(n) >= 1e29) return `"${t}" is too large for p LENGTH 16 DECIMALS 2 (29 digits before the point) - the class dumps`;
+    // from 1e14 on a JS number has no exact cents: the preview shows it rounded
+    if (Math.abs(n) >= 1e14) return `"${t}" is too large for the preview to show exactly (14 digits before the point at most)`;
+    if (/^-?\d*\.\d{3,}$/.test(t) || (/e/i.test(t) && n !== Math.round(n * 100) / 100)) return `"${t}" has more than 2 decimals - the class rounds it`;
   }
   if (type === 'int' && !/^-?\d+$/.test(t)) return `"${t}" is not a whole number`;
+  if (type === 'int' && (BigInt(t) < INT_MIN || BigInt(t) > INT_MAX)) return `"${t}" is outside the range of type i (${INT_MIN} to ${INT_MAX}) - the class dumps`;
   if (type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(t)) return `"${t}" is not a date (yyyy-mm-dd)`;
   if (type === 'time' && !/^\d{2}:\d{2}:\d{2}$/.test(t)) return `"${t}" is not a time (hh:mm:ss)`;
   if (type === 'time' && t === '00:00:00') return 'midnight is ABAP\'s initial time - the app gets no time, as if it were empty';

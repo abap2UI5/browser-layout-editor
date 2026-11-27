@@ -179,6 +179,22 @@ test('a long text is split so no line passes 255 characters', () => {
   }
 });
 
+test('a wide row of a table with a nested table is split field by field, as any other wide row', () => {
+  const long = 'x'.repeat(100);
+  for (const release of ['', '702']) {
+    const d = createDesign();
+    if (release) d.release = release;
+    d.attributes = [{
+      name: 'items', type: 'table',
+      fields: [{ name: 'aaaa', type: 'string' }, { name: 'bbbb', type: 'string' }, { name: 'cccc', type: 'string' }, { name: 'kids', type: 'table', fields: [{ name: 'k', type: 'string' }] }],
+      rows: [{ aaaa: long, bbbb: long, cccc: long, kids: [] }, { aaaa: 'a', kids: [{ k: 'z' }] }],
+    }];
+    const src = generateClass(d);
+    assert.deepEqual(src.split('\n').filter((l) => l.length > 255), [], release || '740');
+    if (!release) assert.match(src, /\( aaaa = `x+`\n\s+bbbb = `x+`\n\s+cccc = `x+` \)\n/, 'one field per line');
+  }
+});
+
 test('the zip is a zip', () => {
   const files = abapGitFiles(kitchenSink());
   const bytes = zip(files);
